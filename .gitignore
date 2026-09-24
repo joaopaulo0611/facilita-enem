@@ -1,0 +1,6 @@
+microdados_enem_*/
+*.zip
+venv/
+.venv/
+__pycache__/
+*.pyc
