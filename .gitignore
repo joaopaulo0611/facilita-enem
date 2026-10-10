@@ -1,6 +1,10 @@
-microdados_enem_*/
+microdados_enem_2022*/
+microdados_enem_2023*/
 *.zip
 venv/
 .venv/
 __pycache__/
 *.pyc
+
+# Saída do pipeline de ETL (gerada, não versionada)
+data/
