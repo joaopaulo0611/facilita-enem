@@ -8,3 +8,6 @@ __pycache__/
 
 # Saída do pipeline de ETL (gerada, não versionada)
 data/
+
+# Material de apoio local (aulas, enunciados, rascunhos): não versionado
+contexto/
