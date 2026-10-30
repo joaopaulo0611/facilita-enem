@@ -20,7 +20,8 @@ etl/                 pipeline PySpark em arquitetura medalhão
   gold.py            distribuição de notas e estatísticas por recorte (o que a API lê)
   volumetria.py      tamanho e linhas de cada camada -> volumetria.json
   run_pipeline.py    executa as três camadas em ordem e mede o tempo de cada uma
-facilita-backend/    API em FastAPI
+facilita-backend/    API em FastAPI (percentil, Z-Score e módulos comparativos)
+facilita-frontend/   interface em React + Chakra UI
 public/docs/         plano de projeto
 ```
 
@@ -43,10 +44,24 @@ execução em `etl/volumetria.json`.
 
 ## Back-end
 
+API em FastAPI que carrega a Gold em memória e calcula percentil e Z-Score.
+
 ```bash
 cd facilita-backend
 python3 -m venv venv
 . venv/bin/activate
-pip install fastapi uvicorn
-uvicorn main:app --reload
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001   # documentação em http://localhost:8001/docs
+python -m pytest tests                  # testes com uma Gold sintética, sem precisar dos microdados
+```
+
+## Front-end
+
+React + Chakra UI (ícones do Material UI). Em desenvolvimento, as chamadas a `/api` vão para o back-end
+na porta 8001 (outra porta: `API_URL=http://localhost:8000 npm run dev`).
+
+```bash
+cd facilita-frontend
+npm install
+npm run dev                      # http://localhost:5173
 ```
