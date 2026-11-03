@@ -7,7 +7,8 @@ import { cor, textoSvg } from '../../svg'
 const LINHA = 15
 const ROTULO = 30
 const LARGURA = 360
-const MARGEM_TOPO = 22
+const MARGEM_TOPO = 16
+const EIXO = 16
 
 /** Gráfico de pontos: o percentil da mesma nota em cada UF, com o Brasil como referência. */
 export default function RankingEstados({ dados }) {
@@ -22,23 +23,25 @@ export default function RankingEstados({ dados }) {
 
   const larguraUtil = LARGURA - ROTULO - 12
   const x = (valor) => ROTULO + ((valor - minimo) / (maximo - minimo)) * larguraUtil
-  const altura = MARGEM_TOPO + ranking.length * LINHA + 6
+  const base = MARGEM_TOPO + ranking.length * LINHA + 2
+  const altura = base + EIXO
   const xBrasil = x(brasil.percentil)
 
   return (
     <Box as="figure" position="relative">
       <Text as="figcaption" mb="1" textStyle="sm" color="fg.muted">Percentil da mesma nota em cada estado</Text>
       <svg viewBox={`0 0 ${LARGURA} ${altura}`} width="100%" role="img" aria-label={`Percentil da sua nota em cada estado, de ${f.percentual(ranking[0].percentil)} em ${ranking[0].nome} a ${f.percentual(ranking.at(-1).percentil)} em ${ranking.at(-1).nome}.`}>
-        {ticks.map((tick) => (
+        {/* Escala embaixo, como eixo; em cima fica só o rótulo do Brasil, sem disputar espaço. */}
+        {ticks.map((tick, i) => (
           <g key={tick}>
-            <line x1={x(tick)} x2={x(tick)} y1={MARGEM_TOPO - 4} y2={altura - 4} stroke={cor('grade')} />
-            <text x={x(tick)} y={10} textAnchor="middle" {...textoSvg(10)}>
+            <line x1={x(tick)} x2={x(tick)} y1={MARGEM_TOPO - 4} y2={base} stroke={cor('grade')} />
+            <text x={x(tick)} y={base + 12} textAnchor={i === ticks.length - 1 ? 'end' : 'middle'} {...textoSvg(10)}>
               {f.percentual(tick)}
             </text>
           </g>
         ))}
-        <line x1={xBrasil} x2={xBrasil} y1={MARGEM_TOPO - 4} y2={altura - 4} stroke={cor('fg')} strokeOpacity="0.5" />
-        <text x={xBrasil} y={MARGEM_TOPO - 7} textAnchor="middle" {...textoSvg(10, 'fg')}>
+        <line x1={xBrasil} x2={xBrasil} y1={MARGEM_TOPO - 4} y2={base} stroke={cor('fg')} strokeOpacity="0.5" />
+        <text x={Math.min(Math.max(xBrasil, ROTULO + 16), LARGURA - 16)} y={MARGEM_TOPO - 6} textAnchor="middle" {...textoSvg(10, 'fg')}>
           Brasil
         </text>
 

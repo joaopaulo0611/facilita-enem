@@ -1,6 +1,6 @@
 # Radar ENEM (Facilita ENEM)
 
-Projeto Aplicado III — Ciência de Dados e IA, UniSENAI 2026/2.
+Projeto Aplicado III, Ciência de Dados e IA, UniSENAI 2026/2.
 
 O Radar ENEM mostra ao participante onde a nota dele fica em relação à população
 do ENEM e a recortes socioeconômicos (renda, tipo de escola, cor/raça, sexo, UF e
