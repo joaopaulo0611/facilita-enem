@@ -57,9 +57,27 @@ Para cada grupo a Gold guarda duas tabelas:
 **Por que a Gold fica tão pequena.** Em vez de guardar 4,9 milhões de pessoas, guarda a
 contagem por nota. Isso basta para o percentil exato e reduz o volume a 0,33% do CSV.
 
-`run_pipeline.py` roda as três camadas em ordem e mede o tempo de cada uma
-(última execução: Bronze 47 s, Silver 22 s, Gold 131 s). `volumetria.py` grava o tamanho e
-as linhas de cada camada em `etl/volumetria.json`, que serve de evidência no relatório.
+`run_pipeline.py` orquestra tudo: antes das camadas, garante que os microdados estão no
+lugar (baixa e extrai o que faltar) e checa a versão do Python; depois roda as três camadas
+em ordem e mede o tempo de cada uma (última execução: Bronze 53 s, Silver 17 s, Gold 79 s).
+A flag `--sem-download` pula a obtenção dos dados quando os CSVs já estão extraídos.
+`volumetria.py` grava o tamanho e as linhas de cada camada em `etl/volumetria.json`, que
+serve de evidência no relatório.
+
+**Obtenção dos microdados.** Os microdados do INEP são pesados (ZIPs de ~2 GB por ano) e o
+portal às vezes recusa a conexão, então o download é automatizado e resiliente:
+
+- `fontes.json` é o manifesto de origem: para cada ano, guarda a URL do ZIP no INEP e, após
+  a primeira verificação, o tamanho e o SHA-256 — que passam a confirmar a integridade nas
+  execuções seguintes (detecta arquivo corrompido ou republicação).
+- `baixar_microdados.py` baixa, confere o checksum e extrai cada ano. O download tem retry e
+  cai para o `curl` se a conexão for recusada; o ZIP que já está em `public/` é reaproveitado.
+- `verificar_ambiente.py` confere, antes de subir o Spark, se a versão do Python é
+  compatível (o PySpark 3.5.3 não suporta versões muito novas) e interrompe cedo com uma
+  orientação objetiva, em vez de falhar no meio do pipeline sem mensagem clara.
+
+A camada Gold (~11 MB) é versionada no repositório, então rodar a API **não** exige baixar
+nem reprocessar nada — o download só é necessário para regenerar a Gold.
 
 ## 2. API (`facilita-backend/`)
 
@@ -101,6 +119,8 @@ até cada nota. Exemplo com um grupo de 10 pessoas:
 | `GET /api/metadados` | Anos da base, áreas, opções de cada campo do formulário e total de participantes |
 | `GET /api/radar` | Para cada área e para a média: nota, percentil, Z-Score, média dos participantes e diferença; mais o histograma da média geral |
 | `GET /api/modulos/regional` | Posição no estado e no Brasil e o ranking dos estados para a mesma nota |
+| `GET /api/modulos/origem` | Posição no Brasil, na mesma renda, no mesmo tipo de escola e no cruzamento renda × escola |
+| `GET /api/modulos/familia` | Posição no Brasil, na mesma escolaridade da mãe e na mesma cor/raça |
 
 Erros de entrada voltam em português e por campo (por exemplo, nota acima de 1000), e o
 front-end mostra a mensagem embaixo do campo certo. Documentação interativa em `/docs`.
@@ -146,14 +166,27 @@ da nota do usuário dentro de um grupo e comparar com o percentil no Brasil todo
 | Pergunta | Responsável | Campos | Situação |
 |---|---|---|---|
 | **Seu estado e o Brasil**: a mesma nota vale o mesmo em todo o país? | João Paulo | Estado | Pronta |
-| **Sua origem**: quanto a renda da família e a escola pesam na sua posição? | Matheus | Renda e tipo de escola | Em construção (a Gold já tem o cruzamento) |
-| **Sua família**: quanto a escolaridade da mãe e a cor ou raça mudam sua posição? | Nicolas | Escolaridade da mãe e cor/raça | Em construção (precisa de um cruzamento novo na Gold) |
+| **Sua origem**: quanto a renda da família e a escola pesam na sua posição? | Matheus Cruz | Renda e tipo de escola | Pronta |
+| **Sua família**: quanto a escolaridade da mãe e a cor ou raça mudam sua posição? | Nicolas Mello | Escolaridade da mãe e cor/raça | Pronta |
 
 **Como a pergunta regional funciona.** Para a nota escolhida (média geral ou uma área), a API
 calcula o percentil no grupo do estado e no grupo do Brasil e diz se a posição melhora ou
 piora no estado. Também calcula o percentil da mesma nota em todos os estados e ordena do
 melhor para o pior. O estado é o **local de prova**, como o INEP registra, e não onde a
 pessoa mora.
+
+**Como a pergunta de origem funciona.** Para a nota escolhida, a API calcula o percentil em
+quatro grupos: no Brasil todo, dentro de quem tem a mesma renda, dentro de quem estudou no
+mesmo tipo de escola e no cruzamento dos dois (mesma renda **e** mesma escola), usando o
+recorte `RENDA_X_TIPO_ESCOLA` já pronto na Gold. Mostra o quanto a origem socioeconômica
+"move a régua": o mesmo ponto rende percentis diferentes conforme o grupo de comparação. O
+código 1 de tipo de escola ("não informou") não é aceito como grupo de comparação.
+
+**Como a pergunta de família funciona.** A API calcula o percentil no Brasil, dentro de quem
+tem a mesma escolaridade da mãe e dentro de quem declarou a mesma cor/raça. Ao contrário de
+renda × escola, a Gold **não** tem o cruzamento desses dois recortes, então cada um é
+comparado em relação ao Brasil, sem combiná-los. O código 0 de cor/raça ("não declarada")
+não é aceito como grupo de comparação.
 
 **Como acrescentar uma pergunta.**
 
