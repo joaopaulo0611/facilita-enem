@@ -41,6 +41,13 @@ RECORTES = {
     "ESCOLARIDADE_MAE": "Q002",
 }
 
+# Cruzamentos de dois recortes, um por módulo comparativo.
+# A categoria fica "valor1|valor2" e o recorte "RECORTE1_X_RECORTE2".
+CRUZAMENTOS = [
+    ("RENDA", "ESCOLARIDADE_MAE"),  # Sua família
+    ("COR_RACA", "TIPO_ESCOLA"),  # Sua origem
+]
+
 
 def criar_spark(nome: str) -> SparkSession:
     """Spark local usando todos os núcleos; memória limitada para caber em notebook comum."""

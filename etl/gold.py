@@ -11,7 +11,7 @@ from functools import reduce
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
-from config import AREAS, COMPRESSAO, GOLD_DISTRIBUICAO, GOLD_ESTATISTICAS, RECORTES, SILVER, criar_spark
+from config import AREAS, COMPRESSAO, CRUZAMENTOS, GOLD_DISTRIBUICAO, GOLD_ESTATISTICAS, RECORTES, SILVER, criar_spark
 
 
 def formato_longo(silver: DataFrame) -> DataFrame:
@@ -36,16 +36,17 @@ def por_recorte(longo: DataFrame) -> DataFrame:
                 "NU_ANO", "AREA", F.lit(recorte).alias("RECORTE"), F.col(recorte).cast("string").alias("CATEGORIA"), "NOTA"
             )
         )
-    # Cruzamento do módulo de equidade: renda dentro de cada tipo de escola.
-    partes.append(
-        longo.select(
-            "NU_ANO",
-            "AREA",
-            F.lit("RENDA_X_TIPO_ESCOLA").alias("RECORTE"),
-            F.concat_ws("|", "RENDA", F.col("TIPO_ESCOLA").cast("string")).alias("CATEGORIA"),
-            "NOTA",
+    # Cruzamentos dos módulos comparativos: um recorte dentro do outro.
+    for primeiro, segundo in CRUZAMENTOS:
+        partes.append(
+            longo.filter(F.col(primeiro).isNotNull() & F.col(segundo).isNotNull()).select(
+                "NU_ANO",
+                "AREA",
+                F.lit(f"{primeiro}_X_{segundo}").alias("RECORTE"),
+                F.concat_ws("|", F.col(primeiro).cast("string"), F.col(segundo).cast("string")).alias("CATEGORIA"),
+                "NOTA",
+            )
         )
-    )
     return reduce(DataFrame.unionByName, partes)
 
 
