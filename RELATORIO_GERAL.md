@@ -47,7 +47,7 @@ média), recorte e categoria. Por exemplo: "2023, Matemática, UF, SC". Os recor
 
 - `GERAL` (todo mundo);
 - `RENDA`, `TIPO_ESCOLA`, `COR_RACA`, `SEXO`, `UF` (estado onde fez a prova) e `ESCOLARIDADE_MAE`;
-- `RENDA_X_TIPO_ESCOLA`, um cruzamento pronto para a pergunta de origem.
+- `RENDA_X_ESCOLARIDADE_MAE` e `COR_RACA_X_TIPO_ESCOLA`, os cruzamentos das perguntas de família e de origem.
 
 Para cada grupo a Gold guarda duas tabelas:
 
@@ -146,8 +146,8 @@ da nota do usuário dentro de um grupo e comparar com o percentil no Brasil todo
 | Pergunta | Responsável | Campos | Situação |
 |---|---|---|---|
 | **Seu estado e o Brasil**: a mesma nota vale o mesmo em todo o país? | João Paulo | Estado | Pronta |
-| **Sua origem**: quanto a renda da família e a escola pesam na sua posição? | Matheus | Renda e tipo de escola | Em construção (a Gold já tem o cruzamento) |
-| **Sua família**: quanto a escolaridade da mãe e a cor ou raça mudam sua posição? | Nicolas | Escolaridade da mãe e cor/raça | Em construção (precisa de um cruzamento novo na Gold) |
+| **Sua origem**: quanto a cor ou raça e a escola pesam na sua posição? | Matheus | Cor/raça e tipo de escola | Em construção (a Gold já tem o cruzamento) |
+| **Sua família**: quanto a renda da família e a escolaridade da mãe mudam sua posição? | Nicolas | Renda e escolaridade da mãe | Em construção (a Gold já tem o cruzamento) |
 
 **Como a pergunta regional funciona.** Para a nota escolhida (média geral ou uma área), a API
 calcula o percentil no grupo do estado e no grupo do Brasil e diz se a posição melhora ou

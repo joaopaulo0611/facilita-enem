@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from auth_routes import auth_router
 from gold import GrupoInexistente
 from radar_routes import radar_router
 from regional_routes import regional_router
@@ -37,6 +36,5 @@ async def entrada_invalida(request: Request, erro: RequestValidationError):
 async def grupo_inexistente(request: Request, erro: GrupoInexistente):
     return JSONResponse(status_code=404, content={"detail": str(erro)})
 
-app.include_router(auth_router)
 app.include_router(radar_router)
 app.include_router(regional_router)
