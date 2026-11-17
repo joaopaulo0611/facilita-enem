@@ -8,6 +8,8 @@
 import FamilyRestroomOutlined from '@mui/icons-material/FamilyRestroomOutlined'
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined'
 import SchoolOutlined from '@mui/icons-material/SchoolOutlined'
+import CartaoFamilia from './familia/CartaoFamilia'
+import CartaoOrigem from './origem/CartaoOrigem'
 import CartaoRegional from './regional/CartaoRegional'
 
 export const MODULOS = [
@@ -25,7 +27,7 @@ export const MODULOS = [
     pergunta: 'Quanto a cor ou raça e a escola pesam na sua posição?',
     campos: ['cor_raca', 'tipo_escola'],
     icone: SchoolOutlined,
-    Componente: null,
+    Componente: CartaoOrigem,
   },
   {
     id: 'familia',
@@ -33,6 +35,6 @@ export const MODULOS = [
     pergunta: 'Quanto a renda da família e a escolaridade da mãe mudam sua posição?',
     campos: ['renda', 'escolaridade_mae'],
     icone: FamilyRestroomOutlined,
-    Componente: null,
+    Componente: CartaoFamilia,
   },
 ]

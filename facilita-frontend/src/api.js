@@ -26,3 +26,5 @@ async function buscar(caminho, parametros = {}) {
 export const buscarMetadados = () => buscar('metadados')
 export const buscarRadar = (notas) => buscar('radar', notas)
 export const buscarRegional = (parametros) => buscar('modulos/regional', parametros)
+export const buscarOrigem = (parametros) => buscar('modulos/origem', parametros)
+export const buscarFamilia = (parametros) => buscar('modulos/familia', parametros)
