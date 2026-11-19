@@ -21,72 +21,136 @@ A API só consulta um resumo pequeno, então responde na hora e cabe num servido
 
 ## 1. Pipeline de dados (`etl/`)
 
-Arquitetura medalhão em PySpark, com as edições de **2022 e 2023**. Anos de 2024 em
-diante ficaram de fora porque os microdados novos podem não ligar a nota ao
-questionário socioeconômico.
+### 1.1 Fonte e escopo
+
+A base são os microdados oficiais do ENEM publicados pelo INEP, edições **2022 e 2023**:
+dois CSVs que somam 3,3 GB e 7.410.060 inscritos. Os dados são públicos e anonimizados pelo
+INEP. Anos de 2024 em diante ficaram de fora porque os microdados novos podem não ligar a
+nota ao questionário socioeconômico, e sem essa ligação os recortes não funcionam.
+
+O pipeline segue a arquitetura medalhão em PySpark e roda **offline**, uma vez por base. Ele
+grava tudo em Parquet com compressão zstd, separado por ano (`NU_ANO`).
+
+### 1.2 Camadas
 
 | Camada | O que faz | Resultado (2022 + 2023) |
 |---|---|---|
-| **Bronze** (`bronze.py`) | Copia o CSV do INEP para Parquet, tudo como texto, sem mudar nada. Guarda de qual arquivo e quando cada linha veio. | 7.410.060 linhas, 590 MB (17,6% do CSV) |
-| **Silver** (`silver.py`) | Escolhe só as colunas usadas, converte os tipos, valida e calcula a média das 5 notas. | 4.945.546 válidos, 70 MB (2,1% do CSV) |
-| **Gold** (`gold.py`) | Conta quantas pessoas tiraram cada nota em cada grupo e calcula as estatísticas de cada grupo. | 15,5 MB (0,46% do CSV) |
+| **Bronze** (`bronze.py`) | Copia o CSV do INEP para Parquet sem mudar nada, com todas as colunas como texto. Acrescenta duas colunas de rastreabilidade: o arquivo de origem (`_arquivo_origem`) e o momento da ingestão (`_ingerido_em`). | 7.410.060 linhas, 78 colunas, 590 MB |
+| **Silver** (`silver.py`) | Fica só com as 15 colunas usadas, converte os tipos, valida cada linha e calcula a média das 5 notas. Separa as linhas válidas das rejeitadas. | 4.945.546 válidas, 70 MB |
+| **Gold** (`gold.py`) | Conta quantas pessoas tiraram cada nota em cada grupo e calcula as estatísticas de cada grupo. É a única camada que a API lê. | 6.727.275 linhas e 2.616 grupos, 15,5 MB |
 
-**Validação na Silver.** Nenhuma linha some sem explicação: cada uma recebe um motivo de
-rejeição ou fica válida. As rejeitadas (2.464.514) vão para uma pasta separada com o motivo:
+A Bronze existe para que uma mudança de regra na Silver não exija ler os CSVs de novo: o
+reprocessamento parte do Parquet, que é bem mais rápido.
 
-1. `AUSENTE_OU_ELIMINADO`: faltou ou foi eliminado em alguma prova;
-2. `REDACAO_EM_BRANCO`;
-3. `NOTA_AUSENTE`;
-4. `NOTA_FORA_DA_ESCALA`: fora de 0 a 1000;
-5. `SEM_QUESTIONARIO`: sem a renda, então não entra nos recortes.
+### 1.3 Validação na Silver
 
-Treineiros não são rejeitados: quem fez as provas tem nota válida para comparação.
+Nenhuma linha some sem explicação: cada uma fica válida ou recebe um motivo de rejeição. As
+rejeitadas vão para `silver/rejeitados`, com o número de inscrição, o ano e o motivo. As
+regras são testadas nesta ordem, e a primeira que falhar define o motivo:
 
-**Grupos na Gold.** Um grupo é a combinação de ano, área (LC, CH, CN, MT, Redação ou a
-média), recorte e categoria. Por exemplo: "2023, Matemática, UF, SC". Os recortes são:
+| Ordem | Motivo | Regra | Linhas na base atual |
+|---|---|---|---|
+| 1 | `AUSENTE_OU_ELIMINADO` | Faltou ou foi eliminado em alguma das 4 provas objetivas | 2.386.973 |
+| 2 | `REDACAO_EM_BRANCO` | Redação com situação "em branco" | 77.541 |
+| 3 | `NOTA_AUSENTE` | Alguma das 5 notas vazia | 0 |
+| 4 | `NOTA_FORA_DA_ESCALA` | Alguma nota fora de 0 a 1000 | 0 |
+| 5 | `SEM_QUESTIONARIO` | Sem a renda (Q006), então não entra nos recortes | 0 |
+| | **Total rejeitado** | | **2.464.514** |
+
+As regras 3 a 5 não pegaram nenhuma linha em 2022 e 2023, mas continuam no pipeline como
+proteção: se o INEP mudar o formato numa edição futura, o problema aparece como motivo de
+rejeição em vez de virar nota errada na Gold.
+
+Treineiros não são rejeitados: quem fez todas as provas tem nota válida para comparação. Na
+base atual são 904.366 treineiros entre os 4.945.546 válidos.
+
+### 1.4 Modelagem da Gold
+
+Um **grupo** é a combinação de ano, área (LC, CH, CN, MT, Redação ou a média), recorte e
+categoria. Por exemplo: "2023, Matemática, UF, SC". Os recortes são:
 
 - `GERAL` (todo mundo);
 - `RENDA`, `TIPO_ESCOLA`, `COR_RACA`, `SEXO`, `UF` (estado onde fez a prova) e `ESCOLARIDADE_MAE`;
-- `RENDA_X_ESCOLARIDADE_MAE` e `COR_RACA_X_TIPO_ESCOLA`, os cruzamentos das perguntas de família e de origem.
+- os cruzamentos `RENDA_X_ESCOLARIDADE_MAE` (pergunta de família) e `COR_RACA_X_TIPO_ESCOLA`
+  (pergunta de origem). A categoria de um cruzamento junta os dois códigos, por exemplo `E|F`.
+  Quem não respondeu um dos dois campos fica fora do cruzamento.
 
-Para cada grupo a Gold guarda duas tabelas:
+Os cruzamentos ficam na lista `CRUZAMENTOS` do `etl/config.py`. Para criar um novo, basta
+acrescentar um par de recortes nessa lista e rodar a Gold de novo.
 
-- `distribuicao_notas`: uma linha por nota distinta, com quantas pessoas tiraram aquela nota;
-- `estatisticas`: tamanho do grupo, média, desvio-padrão, mínimo, quartis e máximo.
+Para cada grupo, a Gold guarda duas tabelas:
 
-**Por que a Gold fica tão pequena.** Em vez de guardar 4,9 milhões de pessoas, guarda a
-contagem por nota. Isso basta para o percentil exato e reduz o volume a 0,46% do CSV.
+- `distribuicao_notas`: uma linha por nota distinta, com quantas pessoas tiraram aquela nota
+  (6.727.275 linhas). É o que permite o percentil exato;
+- `estatisticas`: tamanho do grupo, média, desvio-padrão, mínimo, quartis e máximo (2.616
+  grupos). É a base do Z-Score.
 
-`run_pipeline.py` orquestra tudo: antes das camadas, garante que os microdados estão no
-lugar (baixa e extrai o que faltar) e checa a versão do Python; depois roda as três camadas
-em ordem e mede o tempo de cada uma (última execução: Bronze 53 s, Silver 17 s e Gold 246 s;
-a Gold rodou com 4 GB de memória e 6 núcleos, porque a configuração padrão de 6 GB travou
-um notebook de 16 GB com outros programas abertos).
-A flag `--sem-download` pula a obtenção dos dados quando os CSVs já estão extraídos.
-`volumetria.py` grava o tamanho e as linhas de cada camada em `etl/volumetria.json`, que
-serve de evidência no relatório.
+**Por que a Gold fica tão pequena.** Em vez de guardar 4,9 milhões de pessoas, ela guarda
+quantas pessoas tiraram cada nota. Isso basta para o percentil exato e reduz o volume a 0,46%
+do CSV. Antes de gravar, as linhas são ordenadas por grupo e nota, porque valores vizinhos
+repetidos comprimem melhor no Parquet.
 
-**Obtenção dos microdados.** Os microdados do INEP são pesados (ZIPs de ~2 GB por ano) e o
-portal às vezes recusa a conexão, então o download é automatizado e resiliente:
+### 1.5 Execução
 
-- `fontes.json` é o manifesto de origem: para cada ano, guarda a URL do ZIP no INEP e, depois
-  do primeiro download, o tamanho e o SHA-256 do ZIP. Nas execuções seguintes, esses valores
-  confirmam a integridade e detectam arquivo corrompido ou republicado pelo INEP. Se o CSV
-  do ano já está extraído, a etapa é pulada e o hash não é calculado; por isso os campos
-  continuam `null` em quem extraiu os microdados à mão.
-- `baixar_microdados.py` baixa, confere o checksum e extrai cada ano. O download tem retry e
-  cai para o `curl` se a conexão for recusada; o ZIP que já está em `public/` é reaproveitado.
+`run_pipeline.py` orquestra tudo:
+
+1. checa a versão do Python (`verificar_ambiente.py`);
+2. garante que os microdados estão no lugar, baixando e extraindo o que faltar
+   (`baixar_microdados.py`). A flag `--sem-download` pula esta etapa quando os CSVs já
+   estão extraídos;
+3. roda Bronze, Silver e Gold em ordem, medindo o tempo de cada uma;
+4. mede a volumetria de cada camada e grava em `etl/volumetria.json` (`volumetria.py`).
+
+Cada camada sobrescreve a própria saída. Por isso rodar o pipeline de novo não duplica dados:
+o resultado é sempre o mesmo para a mesma entrada.
+
+Tempos da última execução: Bronze 53 s, Silver 17 s e Gold 246 s. A Gold rodou com 4 GB de
+memória e 6 núcleos, porque a configuração padrão do `etl/config.py` (6 GB e todos os
+núcleos) travou um notebook de 16 GB com outros programas abertos.
+
+### 1.6 Obtenção dos microdados
+
+Os microdados do INEP são pesados (ZIPs de cerca de 2 GB por ano) e o portal às vezes recusa
+a conexão. Por isso o download é automatizado e resiliente:
+
+- `fontes.json` é o manifesto de origem. Para cada ano, guarda a URL do ZIP no INEP e,
+  depois do primeiro download, o tamanho e o SHA-256 do ZIP. Nas execuções seguintes, esses
+  valores confirmam a integridade e detectam arquivo corrompido ou republicado pelo INEP. Se
+  o CSV do ano já está extraído, a etapa é pulada e o hash não é calculado; por isso os
+  campos continuam `null` em quem extraiu os microdados à mão.
+- `baixar_microdados.py` baixa, confere o checksum e extrai cada ano. O download faz até 4
+  tentativas, retoma de onde parou e, se nada disso bastar, usa o `curl` do sistema. Um ZIP
+  que já está em `public/` é reaproveitado.
 - `verificar_ambiente.py` confere, antes de subir o Spark, se a versão do Python é
-  compatível (o PySpark 3.5.3 não suporta versões muito novas) e interrompe cedo com uma
-  orientação objetiva, em vez de falhar no meio do pipeline sem mensagem clara.
+  compatível com o PySpark 3.5.3. Se não for, interrompe logo no começo com uma orientação
+  clara, em vez de falhar no meio do pipeline sem mensagem.
 
-A camada Gold (15,5 MB) é versionada no repositório, então rodar a API **não** exige baixar
-nem reprocessar nada. O download só é necessário para regenerar a Gold. Bronze e Silver
-ficam fora do Git (`.gitignore`), porque são grandes e só servem para gerar a Gold.
+### 1.7 Volumetria
+
+Valores de `etl/volumetria.json`, comparados com os 3.345 MB dos dois CSVs:
+
+| Camada | Tamanho | Linhas | % do CSV |
+|---|---|---|---|
+| CSV bruto (2 arquivos) | 3.345,3 MB | 7.410.060 | 100% |
+| Bronze | 589,9 MB | 7.410.060 | 17,6% |
+| Silver: participantes | 69,6 MB | 4.945.546 | 2,1% |
+| Silver: rejeitados | 7,7 MB | 2.464.514 | 0,23% |
+| Gold: distribuição de notas | 15,4 MB | 6.727.275 | 0,46% |
+| Gold: estatísticas | 0,1 MB | 2.616 | 0,002% |
+
+A API em produção nunca lê o CSV do INEP: ela lê só a Gold, que é 0,46% do tamanho original.
+
+### 1.8 Versionamento dos dados
+
+A Gold é versionada no repositório (`data/gold/`), então rodar a API **não** exige baixar
+nem reprocessar nada, e o servidor do deploy só precisa do repositório. Cada vez que a Gold
+é gerada de novo, o commit registra quando os dados mudaram e por quê. Bronze e Silver ficam
+fora do Git (`.gitignore`), porque são grandes e só servem para gerar a Gold. O download dos
+microdados só é necessário para regenerar a Gold.
 
 ## 2. API (`facilita-backend/`)
 
-FastAPI. Ao receber a primeira requisição, carrega a Gold na memória (cerca de 1,4 s) e
+FastAPI. Ao receber a primeira requisição, carrega a Gold na memória (cerca de 1,5 s) e
 mantém ela lá.
 
 ### Os anos viram uma base só
