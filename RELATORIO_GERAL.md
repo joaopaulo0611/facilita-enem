@@ -7,7 +7,7 @@ Para instalar e rodar, veja o [README](README.md).
 microdados do INEP (CSV, 3,3 GB)
         │  etl/  (PySpark, roda offline, uma vez)
         ▼
-Bronze ──► Silver ──► Gold (11 MB)
+Bronze ──► Silver ──► Gold (15,5 MB)
                         │  facilita-backend/  (FastAPI)
                         ▼
                 API: percentil e Z-Score
@@ -29,7 +29,7 @@ questionário socioeconômico.
 |---|---|---|
 | **Bronze** (`bronze.py`) | Copia o CSV do INEP para Parquet, tudo como texto, sem mudar nada. Guarda de qual arquivo e quando cada linha veio. | 7.410.060 linhas, 590 MB (17,6% do CSV) |
 | **Silver** (`silver.py`) | Escolhe só as colunas usadas, converte os tipos, valida e calcula a média das 5 notas. | 4.945.546 válidos, 70 MB (2,1% do CSV) |
-| **Gold** (`gold.py`) | Conta quantas pessoas tiraram cada nota em cada grupo e calcula as estatísticas de cada grupo. | 11 MB (0,33% do CSV) |
+| **Gold** (`gold.py`) | Conta quantas pessoas tiraram cada nota em cada grupo e calcula as estatísticas de cada grupo. | 15,5 MB (0,46% do CSV) |
 
 **Validação na Silver.** Nenhuma linha some sem explicação: cada uma recebe um motivo de
 rejeição ou fica válida. As rejeitadas (2.464.514) vão para uma pasta separada com o motivo:
@@ -55,11 +55,13 @@ Para cada grupo a Gold guarda duas tabelas:
 - `estatisticas`: tamanho do grupo, média, desvio-padrão, mínimo, quartis e máximo.
 
 **Por que a Gold fica tão pequena.** Em vez de guardar 4,9 milhões de pessoas, guarda a
-contagem por nota. Isso basta para o percentil exato e reduz o volume a 0,33% do CSV.
+contagem por nota. Isso basta para o percentil exato e reduz o volume a 0,46% do CSV.
 
 `run_pipeline.py` orquestra tudo: antes das camadas, garante que os microdados estão no
 lugar (baixa e extrai o que faltar) e checa a versão do Python; depois roda as três camadas
-em ordem e mede o tempo de cada uma (última execução: Bronze 53 s, Silver 17 s, Gold 79 s).
+em ordem e mede o tempo de cada uma (última execução: Bronze 53 s, Silver 17 s e Gold 246 s;
+a Gold rodou com 4 GB de memória e 6 núcleos, porque a configuração padrão de 6 GB travou
+um notebook de 16 GB com outros programas abertos).
 A flag `--sem-download` pula a obtenção dos dados quando os CSVs já estão extraídos.
 `volumetria.py` grava o tamanho e as linhas de cada camada em `etl/volumetria.json`, que
 serve de evidência no relatório.
@@ -67,17 +69,20 @@ serve de evidência no relatório.
 **Obtenção dos microdados.** Os microdados do INEP são pesados (ZIPs de ~2 GB por ano) e o
 portal às vezes recusa a conexão, então o download é automatizado e resiliente:
 
-- `fontes.json` é o manifesto de origem: para cada ano, guarda a URL do ZIP no INEP e, após
-  a primeira verificação, o tamanho e o SHA-256 — que passam a confirmar a integridade nas
-  execuções seguintes (detecta arquivo corrompido ou republicação).
+- `fontes.json` é o manifesto de origem: para cada ano, guarda a URL do ZIP no INEP e, depois
+  do primeiro download, o tamanho e o SHA-256 do ZIP. Nas execuções seguintes, esses valores
+  confirmam a integridade e detectam arquivo corrompido ou republicado pelo INEP. Se o CSV
+  do ano já está extraído, a etapa é pulada e o hash não é calculado; por isso os campos
+  continuam `null` em quem extraiu os microdados à mão.
 - `baixar_microdados.py` baixa, confere o checksum e extrai cada ano. O download tem retry e
   cai para o `curl` se a conexão for recusada; o ZIP que já está em `public/` é reaproveitado.
 - `verificar_ambiente.py` confere, antes de subir o Spark, se a versão do Python é
   compatível (o PySpark 3.5.3 não suporta versões muito novas) e interrompe cedo com uma
   orientação objetiva, em vez de falhar no meio do pipeline sem mensagem clara.
 
-A camada Gold (~11 MB) é versionada no repositório, então rodar a API **não** exige baixar
-nem reprocessar nada — o download só é necessário para regenerar a Gold.
+A camada Gold (15,5 MB) é versionada no repositório, então rodar a API **não** exige baixar
+nem reprocessar nada. O download só é necessário para regenerar a Gold. Bronze e Silver
+ficam fora do Git (`.gitignore`), porque são grandes e só servem para gerar a Gold.
 
 ## 2. API (`facilita-backend/`)
 

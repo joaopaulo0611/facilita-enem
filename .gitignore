@@ -6,8 +6,13 @@ venv/
 __pycache__/
 *.pyc
 
-# Saída do pipeline de ETL (gerada, não versionada)
-data/
+# Saída do pipeline de ETL: Bronze e Silver são grandes e ficam fora do Git.
+# A Gold (~16 MB) é versionada, porque é tudo que a API lê: quem clona o
+# repositório (ou o servidor do deploy) roda a API sem reprocessar os microdados.
+data/*
+!data/gold/
+# Arquivos de checksum que o Spark grava ao lado de cada Parquet.
+*.crc
 
 # Material de apoio local (aulas, enunciados, rascunhos): não versionado
 contexto/

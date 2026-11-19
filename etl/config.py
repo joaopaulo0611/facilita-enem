@@ -5,11 +5,11 @@ from pyspark.sql import SparkSession
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# Entrada: microdados oficiais do INEP, baixados à mão (não versionados).
+# Entrada: microdados oficiais do INEP (não versionados), baixados por baixar_microdados.py.
 ANOS = [2022, 2023]
 CSV_BRUTO = {ano: RAIZ / "public" / f"microdados_enem_{ano}" / "DADOS" / f"MICRODADOS_ENEM_{ano}.csv" for ano in ANOS}
 
-# Saída: uma pasta por camada (não versionada, é gerada pelo pipeline).
+# Saída: uma pasta por camada, gerada pelo pipeline. Só a Gold é versionada no Git.
 DADOS = RAIZ / "data"
 BRONZE = DADOS / "bronze" / "microdados"
 SILVER = DADOS / "silver" / "participantes"
