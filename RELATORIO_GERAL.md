@@ -113,14 +113,19 @@ núcleos) travou um notebook de 16 GB com outros programas abertos.
 Os microdados do INEP são pesados (ZIPs de cerca de 2 GB por ano) e o portal às vezes recusa
 a conexão. Por isso o download é automatizado e resiliente:
 
-- `fontes.json` é o manifesto de origem. Para cada ano, guarda a URL do ZIP no INEP e,
-  depois do primeiro download, o tamanho e o SHA-256 do ZIP. Nas execuções seguintes, esses
-  valores confirmam a integridade e detectam arquivo corrompido ou republicado pelo INEP. Se
-  o CSV do ano já está extraído, a etapa é pulada e o hash não é calculado; por isso os
-  campos continuam `null` em quem extraiu os microdados à mão.
+- `fontes.json` é o manifesto de origem. Para cada ano, guarda a URL do ZIP no INEP e o
+  tamanho e o SHA-256 do ZIP, registrados na primeira verificação bem-sucedida. Nas
+  execuções seguintes, esses valores confirmam a integridade e detectam arquivo corrompido
+  ou republicado pelo INEP. Na base atual os dois anos (2022 e 2023) já estão com o checksum
+  preenchido; um campo `null` significa apenas que aquele ano ainda não foi verificado.
 - `baixar_microdados.py` baixa, confere o checksum e extrai cada ano. O download faz até 4
   tentativas, retoma de onde parou e, se nada disso bastar, usa o `curl` do sistema. Um ZIP
-  que já está em `public/` é reaproveitado.
+  que já está em `public/` é reaproveitado. **Antes de aceitar qualquer download**, o script
+  valida que o arquivo é mesmo um ZIP (tamanho mínimo e assinatura `PK\x03\x04`): o portal do
+  INEP às vezes responde com um redirect/erro curto (status 200) que seria salvo como se
+  fosse o ZIP e só estouraria depois, na extração, com um `BadZipFile` confuso. Com a
+  validação, um download inválido é recusado na hora, com uma mensagem clara e sem registrar
+  um checksum falso no `fontes.json`.
 - `verificar_ambiente.py` confere, antes de subir o Spark, se a versão do Python é
   compatível com o PySpark 3.5.3. Se não for, interrompe logo no começo com uma orientação
   clara, em vez de falhar no meio do pipeline sem mensagem.
