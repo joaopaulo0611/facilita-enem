@@ -4,13 +4,13 @@
   "anos": {
     "2022": {
       "url": "https://download.inep.gov.br/microdados/microdados_enem_2022.zip",
-      "bytes": null,
-      "sha256": null
+      "bytes": 620743609,
+      "sha256": "3cb321eb490fc4fd2d021fcd7672f1801a6ec37fdfea24a14369f054dc2d8faf"
     },
     "2023": {
       "url": "https://download.inep.gov.br/microdados/microdados_enem_2023.zip",
-      "bytes": null,
-      "sha256": null
+      "bytes": 549511687,
+      "sha256": "19512b7e29c9c8e940554396969722081341caa275c245a6c9d2d559c5d13a0a"
     }
   }
 }
