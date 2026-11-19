@@ -36,7 +36,7 @@ public/docs/         plano de projeto
 
 ## Dados: só reprocesse se precisar
 
-Os microdados do INEP são pesados (ZIPs de ~2 GB por ano, ~3,3 GB de CSV depois
+Os microdados do INEP são pesados (ZIPs de ~600 MB por ano, ~3,3 GB de CSV depois
 de extrair) e demoram muito para baixar. Para evitar esse custo no dia a dia, **a
 camada Gold já vem versionada no repositório** (`data/gold/`, ~16 MB). Ela é tudo
 o que o back-end lê. Então, para rodar a API, **você não precisa baixar nem
