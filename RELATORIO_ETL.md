@@ -119,6 +119,12 @@ download manual:
   cabeçalhos que imitam um navegador (o portal recusa clientes "não-navegador") e,
   em último caso, fallback para o `curl` do sistema. Um ZIP já presente em `public/`
   é reaproveitado.
+- **Validação do que foi baixado.** Antes de aceitar o arquivo, o script confere que
+  ele é mesmo um ZIP (tamanho mínimo e assinatura `PK\x03\x04`). O portal do INEP às
+  vezes responde com um redirect/erro curto (status 200) que seria salvo como se
+  fosse o ZIP e só estouraria depois, na extração, com um `BadZipFile` confuso — pior,
+  com um checksum falso registrado no `fontes.json`. Com a validação, um download
+  inválido é recusado na hora, com mensagem clara, sem contaminar o manifesto.
 - **Verificação de ambiente (`verificar_ambiente.py`).** Antes de subir o Spark,
   confere se a versão do Python é compatível com o PySpark 3.5.3 (suporte oficial
   3.8–3.11; 3.12 passa com aviso). Isso transforma a falha silenciosa da JVM numa
@@ -248,12 +254,10 @@ resultado reduz o volume analítico a uma fração mínima do CSV original (ver 
 **Resultado (código atual, com os dois cruzamentos):** ~6,73 milhões de linhas de
 distribuição e **2.616 grupos** de estatísticas, ~**15,5 MB** no total.
 
-> **Nota de rastreabilidade de números.** O arquivo `etl/volumetria.json`
-> versionado no repositório foi gerado em uma execução **anterior** à inclusão do
-> segundo cruzamento (`RENDA_X_ESCOLARIDADE_MAE`) e registra 1.380 grupos / ~11 MB.
-> Os números deste relatório (2.616 grupos / ~15,5 MB) refletem o **código atual**.
-> Recomenda-se regerar e **commitar `etl/volumetria.json`** após a próxima execução
-> para que a evidência volte a casar com o código (ver §12).
+> **Rastreabilidade dos números.** O `etl/volumetria.json` versionado foi
+> regenerado após a inclusão do segundo cruzamento (`RENDA_X_ESCOLARIDADE_MAE`) e
+> hoje registra exatamente estes valores — 2.616 grupos e 6.727.275 linhas de
+> distribuição. A evidência no repositório casa com o código atual.
 
 ---
 
@@ -377,9 +381,6 @@ o custo foi pago no batch.
 - **Escopo temporal.** Só 2022 e 2023; incluir 2024+ depende de o INEP manter a
   ligação nota ↔ questionário.
 - **UF = local de prova**, não residência (como o INEP registra).
-- **Evidência de volumetria defasada.** `etl/volumetria.json` versionado reflete a
-  execução de um cruzamento (1.380 grupos / ~11 MB), enquanto o código atual gera
-  dois (2.616 grupos / ~15,5 MB). Regerar e commitar fecha essa lacuna.
 - **Qualidade implícita.** As regras de QA vivem no código da Silver; não há ainda
   um relatório de qualidade publicado a cada execução além da contagem de rejeições.
 
