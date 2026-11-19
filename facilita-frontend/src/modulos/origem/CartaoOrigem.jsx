@@ -25,34 +25,34 @@ function Posicao({ rotulo, dados, destaque }) {
 
 /** Explica o quanto a origem desloca a posição, comparando o cruzamento com o Brasil. */
 function frase(dados) {
-  const diferenca = dados.por_renda_e_escola.percentil - dados.brasil.percentil
+  const diferenca = dados.por_cor_raca_e_escola.percentil - dados.brasil.percentil
   const pontos = f.nota(Math.abs(diferenca)).replace(',0', '')
-  const renda = dados.renda.nome.toLowerCase()
+  const cor = dados.cor_raca.nome.toLowerCase()
   const escola = dados.tipo_escola.nome.toLowerCase()
   if (Math.abs(diferenca) < 0.5) {
-    return `Entre quem tem renda ${renda} e estudou em escola ${escola}, sua posição é praticamente a mesma que no Brasil todo.`
+    return `Entre quem declarou cor/raça ${cor} e estudou em escola ${escola}, sua posição é praticamente a mesma que no Brasil todo.`
   }
   return diferenca > 0
-    ? `Entre quem tem renda ${renda} e estudou em escola ${escola}, sua nota rende uma posição ${pontos} pontos percentuais melhor que no Brasil todo — a concorrência nesse grupo é menor.`
-    : `Entre quem tem renda ${renda} e estudou em escola ${escola}, sua posição fica ${pontos} pontos percentuais abaixo da nacional — a concorrência nesse grupo é mais forte.`
+    ? `Entre quem declarou cor/raça ${cor} e estudou em escola ${escola}, sua nota rende uma posição ${pontos} pontos percentuais melhor que no Brasil todo — a concorrência nesse grupo é menor.`
+    : `Entre quem declarou cor/raça ${cor} e estudou em escola ${escola}, sua posição fica ${pontos} pontos percentuais abaixo da nacional — a concorrência nesse grupo é mais forte.`
 }
 
 export default function CartaoOrigem({ modulo, perfil, resultado }) {
   const [area, setArea] = useState('MEDIA')
   const [estado, setEstado] = useState({ dados: null, erro: null })
   const nota = area === 'MEDIA' ? resultado.media_geral.nota : perfil.notas[AREAS.find((a) => a.codigo === area).id]
-  const renda = perfil.campos.renda
+  const corRaca = perfil.campos.cor_raca
   const tipoEscola = perfil.campos.tipo_escola
 
   useEffect(() => {
     let atual = true
-    buscarOrigem({ area, nota, renda, tipo_escola: tipoEscola })
+    buscarOrigem({ area, nota, cor_raca: corRaca, tipo_escola: tipoEscola })
       .then((dados) => atual && setEstado({ dados, erro: null }))
       .catch((erro) => atual && setEstado({ dados: null, erro: erro.message }))
     return () => {
       atual = false
     }
-  }, [area, nota, renda, tipoEscola])
+  }, [area, nota, corRaca, tipoEscola])
 
   const { dados, erro } = estado
   const carregando = !erro && dados?.area !== area
@@ -98,13 +98,13 @@ export default function CartaoOrigem({ modulo, perfil, resultado }) {
           </Text>
           <SimpleGrid mt="3" columns={{ base: 2, md: 4 }} gap="3">
             <Posicao rotulo="No Brasil" dados={dados.brasil} />
-            <Posicao rotulo={`Renda: ${dados.renda.nome}`} dados={dados.por_renda} />
+            <Posicao rotulo={`Cor/raça: ${dados.cor_raca.nome}`} dados={dados.por_cor_raca} />
             <Posicao rotulo={`Escola ${dados.tipo_escola.nome.toLowerCase()}`} dados={dados.por_escola} />
-            <Posicao rotulo="Renda e escola juntas" dados={dados.por_renda_e_escola} destaque />
+            <Posicao rotulo="Cor/raça e escola juntas" dados={dados.por_cor_raca_e_escola} destaque />
           </SimpleGrid>
           <Text mt="4" textStyle="md" color="fg">{frase(dados)}</Text>
           <Text mt="4" textStyle="xs" color="fg.muted">
-            A renda é a familiar mensal declarada no questionário do INEP; o tipo de escola é o do ensino médio.
+            A cor/raça e o tipo de escola (ensino médio) são os declarados no questionário do INEP.
           </Text>
         </Box>
       )}

@@ -23,34 +23,36 @@ function Posicao({ rotulo, dados, destaque }) {
   )
 }
 
-/** Compara o deslocamento de cada recorte em relação ao Brasil e destaca o maior. */
+/** Explica o quanto a família desloca a posição, comparando o cruzamento com o Brasil. */
 function frase(dados) {
-  const dMae = dados.por_escolaridade_mae.percentil - dados.brasil.percentil
-  const dCor = dados.por_cor_raca.percentil - dados.brasil.percentil
-  const forte = Math.abs(dMae) >= Math.abs(dCor) ? { d: dMae, rotulo: `quem tem mãe com "${dados.escolaridade_mae.nome.toLowerCase()}"` } : { d: dCor, rotulo: `quem declarou cor/raça ${dados.cor_raca.nome.toLowerCase()}` }
-  if (Math.abs(forte.d) < 0.5) return 'Nesses recortes, sua posição é praticamente a mesma que no Brasil todo.'
-  const pontos = f.nota(Math.abs(forte.d)).replace(',0', '')
-  return forte.d > 0
-    ? `Entre ${forte.rotulo}, sua nota rende uma posição ${pontos} pontos percentuais melhor que no Brasil todo.`
-    : `Entre ${forte.rotulo}, sua posição fica ${pontos} pontos percentuais abaixo da nacional.`
+  const diferenca = dados.por_renda_e_escolaridade_mae.percentil - dados.brasil.percentil
+  const pontos = f.nota(Math.abs(diferenca)).replace(',0', '')
+  const renda = dados.renda.nome.toLowerCase()
+  const mae = dados.escolaridade_mae.nome.toLowerCase()
+  if (Math.abs(diferenca) < 0.5) {
+    return `Entre quem tem renda ${renda} e mãe com "${mae}", sua posição é praticamente a mesma que no Brasil todo.`
+  }
+  return diferenca > 0
+    ? `Entre quem tem renda ${renda} e mãe com "${mae}", sua nota rende uma posição ${pontos} pontos percentuais melhor que no Brasil todo — a concorrência nesse grupo é menor.`
+    : `Entre quem tem renda ${renda} e mãe com "${mae}", sua posição fica ${pontos} pontos percentuais abaixo da nacional — a concorrência nesse grupo é mais forte.`
 }
 
 export default function CartaoFamilia({ modulo, perfil, resultado }) {
   const [area, setArea] = useState('MEDIA')
   const [estado, setEstado] = useState({ dados: null, erro: null })
   const nota = area === 'MEDIA' ? resultado.media_geral.nota : perfil.notas[AREAS.find((a) => a.codigo === area).id]
+  const renda = perfil.campos.renda
   const escolaridadeMae = perfil.campos.escolaridade_mae
-  const corRaca = perfil.campos.cor_raca
 
   useEffect(() => {
     let atual = true
-    buscarFamilia({ area, nota, escolaridade_mae: escolaridadeMae, cor_raca: corRaca })
+    buscarFamilia({ area, nota, renda, escolaridade_mae: escolaridadeMae })
       .then((dados) => atual && setEstado({ dados, erro: null }))
       .catch((erro) => atual && setEstado({ dados: null, erro: erro.message }))
     return () => {
       atual = false
     }
-  }, [area, nota, escolaridadeMae, corRaca])
+  }, [area, nota, renda, escolaridadeMae])
 
   const { dados, erro } = estado
   const carregando = !erro && dados?.area !== area
@@ -94,14 +96,15 @@ export default function CartaoFamilia({ modulo, perfil, resultado }) {
             Com <Text as="strong" color="fg" fontVariantNumeric="tabular-nums">{f.nota(dados.nota)} pts</Text> em{' '}
             {OPCOES_AREA.find((a) => a.codigo === dados.area).nome.toLowerCase()}, veja como cada recorte muda sua posição:
           </Text>
-          <SimpleGrid mt="3" columns={{ base: 1, md: 3 }} gap="3">
+          <SimpleGrid mt="3" columns={{ base: 2, md: 4 }} gap="3">
             <Posicao rotulo="No Brasil" dados={dados.brasil} />
-            <Posicao rotulo={`Mãe: ${dados.escolaridade_mae.nome}`} dados={dados.por_escolaridade_mae} destaque />
-            <Posicao rotulo={`Cor/raça: ${dados.cor_raca.nome}`} dados={dados.por_cor_raca} destaque />
+            <Posicao rotulo={`Renda: ${dados.renda.nome}`} dados={dados.por_renda} />
+            <Posicao rotulo={`Mãe: ${dados.escolaridade_mae.nome}`} dados={dados.por_escolaridade_mae} />
+            <Posicao rotulo="Renda e escolaridade juntas" dados={dados.por_renda_e_escolaridade_mae} destaque />
           </SimpleGrid>
           <Text mt="4" textStyle="md" color="fg">{frase(dados)}</Text>
           <Text mt="4" textStyle="xs" color="fg.muted">
-            Cada recorte é comparado com o Brasil separadamente, como o INEP os registra no questionário.
+            A renda familiar mensal e a escolaridade da mãe são as declaradas no questionário do INEP.
           </Text>
         </Box>
       )}

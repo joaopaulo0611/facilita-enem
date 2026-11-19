@@ -28,22 +28,28 @@ def gold() -> Gold:
     sc = [(600.0 + 2 * i, 1) for i in range(150)]
     am = [(400.0 + 2 * i, 1) for i in range(150)]
     rr = [(500.0, 10)]
-    # Módulo origem: renda alta (Q) tira mais que renda baixa (B); escola
-    # privada (3) mais que pública (2). O cruzamento B|2 é renda baixa em
-    # escola pública. Grupo B|3 é pequeno demais para comparar.
+    # Recortes socioeconômicos: renda alta (Q) tira mais que renda baixa (B);
+    # escola privada (3) mais que pública (2). Grupos pequenos (10 pessoas)
+    # servem para testar a recusa por tamanho mínimo.
     renda_b = [(400.0 + 2 * i, 1) for i in range(150)]
     renda_q = [(600.0 + 2 * i, 1) for i in range(150)]
     escola_2 = [(420.0 + 2 * i, 1) for i in range(150)]
     escola_3 = [(620.0 + 2 * i, 1) for i in range(150)]
-    cruz_b2 = [(410.0 + 2 * i, 1) for i in range(150)]
-    cruz_b3 = [(500.0, 10)]
-    # Módulo família: mãe com ensino médio (E) tira menos que com pós (G);
-    # cor/raça 3 (parda) tem notas mais baixas que 1 (branca). Cor 5 é pequena.
+    # mãe com ensino médio (E) tira menos que com pós (G);
+    # cor/raça 3 (parda) tem notas mais baixas que 1 (branca).
     mae_e = [(400.0 + 2 * i, 1) for i in range(150)]
     mae_g = [(600.0 + 2 * i, 1) for i in range(150)]
     cor_1 = [(620.0 + 2 * i, 1) for i in range(150)]
     cor_3 = [(420.0 + 2 * i, 1) for i in range(150)]
     cor_5 = [(500.0, 10)]
+    # Módulo origem: cruzamento cor/raça x tipo de escola. 3|2 é parda em escola
+    # pública; 3|3 é pequeno demais para comparar.
+    cruz_cor_escola_32 = [(410.0 + 2 * i, 1) for i in range(150)]
+    cruz_cor_escola_33 = [(500.0, 10)]
+    # Módulo família: cruzamento renda x escolaridade da mãe. B|E é renda baixa
+    # com mãe no ensino médio; B|G é pequeno demais para comparar.
+    cruz_renda_mae_be = [(415.0 + 2 * i, 1) for i in range(150)]
+    cruz_renda_mae_bg = [(500.0, 10)]
     linhas = []
     for area in AREAS:
         linhas += _grupo(area, "GERAL", "TODOS", brasil)
@@ -54,13 +60,15 @@ def gold() -> Gold:
         linhas += _grupo(area, "RENDA", "Q", renda_q)
         linhas += _grupo(area, "TIPO_ESCOLA", "2", escola_2)
         linhas += _grupo(area, "TIPO_ESCOLA", "3", escola_3)
-        linhas += _grupo(area, "RENDA_X_TIPO_ESCOLA", "B|2", cruz_b2)
-        linhas += _grupo(area, "RENDA_X_TIPO_ESCOLA", "B|3", cruz_b3)
         linhas += _grupo(area, "ESCOLARIDADE_MAE", "E", mae_e)
         linhas += _grupo(area, "ESCOLARIDADE_MAE", "G", mae_g)
         linhas += _grupo(area, "COR_RACA", "1", cor_1)
         linhas += _grupo(area, "COR_RACA", "3", cor_3)
         linhas += _grupo(area, "COR_RACA", "5", cor_5)
+        linhas += _grupo(area, "COR_RACA_X_TIPO_ESCOLA", "3|2", cruz_cor_escola_32)
+        linhas += _grupo(area, "COR_RACA_X_TIPO_ESCOLA", "3|3", cruz_cor_escola_33)
+        linhas += _grupo(area, "RENDA_X_ESCOLARIDADE_MAE", "B|E", cruz_renda_mae_be)
+        linhas += _grupo(area, "RENDA_X_ESCOLARIDADE_MAE", "B|G", cruz_renda_mae_bg)
     distribuicao = pd.DataFrame(linhas)
 
     estatisticas = []

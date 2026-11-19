@@ -112,7 +112,17 @@ class Gold:
 
         for inicio, fim in zip(inicios, fins):
             area, recorte, categoria = (rotulos[i][chave[i, inicio]] for i in range(3))
-            est = self.estatisticas.loc[(ano, area, recorte, categoria)]
+            try:
+                est = self.estatisticas.loc[(ano, area, recorte, categoria)]
+            except KeyError as erro:
+                # distribuicao_notas e estatisticas saíram de execuções diferentes
+                # do ETL: há um grupo numa tabela e não na outra. Mensagem clara
+                # em vez de um 500 opaco em toda rota (inclusive /metadados).
+                raise RuntimeError(
+                    f"Gold inconsistente: o grupo {(ano, area, recorte, categoria)} está em "
+                    "distribuicao_notas mas não em estatisticas. Rode o ETL (etl/gold.py) de novo "
+                    "para regerar as duas tabelas juntas."
+                ) from erro
             antes = acumulado[inicio - 1] if inicio > 0 else 0
             novo = Grupo(
                 notas=nota[inicio:fim],
