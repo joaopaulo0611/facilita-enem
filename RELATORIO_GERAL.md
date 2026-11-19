@@ -1,7 +1,7 @@
 # Como o Radar ENEM funciona
 
 Visão geral de cada parte do projeto: o que ela faz e por que foi feita assim.
-Para instalar e rodar, veja o [README](README.md).
+Para instalar e rodar, veja o [README](https://github.com/joaopaulo0611/facilita-enem/blob/main/README.md).
 
 ```
 microdados do INEP (CSV, 3,3 GB)
@@ -110,7 +110,7 @@ núcleos) travou um notebook de 16 GB com outros programas abertos.
 
 ### 1.6 Obtenção dos microdados
 
-Os microdados do INEP são pesados (ZIPs de cerca de 2 GB por ano) e o portal às vezes recusa
+Os microdados do INEP são pesados (ZIPs de 550 a 620 MB por ano) e o portal às vezes recusa
 a conexão. Por isso o download é automatizado e resiliente:
 
 - `fontes.json` é o manifesto de origem. Para cada ano, guarda a URL do ZIP no INEP e o
