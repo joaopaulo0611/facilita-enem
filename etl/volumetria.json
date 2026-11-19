@@ -25,22 +25,22 @@
     "percentual_do_csv": 0.23
   },
   "gold_distribuicao": {
-    "bytes": 10969648,
-    "linhas": 4662949,
+    "bytes": 15434811,
+    "linhas": 6727275,
     "colunas": 6,
     "arquivos": 2,
-    "percentual_do_csv": 0.328
+    "percentual_do_csv": 0.461
   },
   "gold_estatisticas": {
-    "bytes": 30178,
-    "linhas": 1380,
+    "bytes": 54360,
+    "linhas": 2616,
     "colunas": 12,
     "arquivos": 1,
-    "percentual_do_csv": 0.001
+    "percentual_do_csv": 0.002
   },
   "tempo_segundos": {
     "bronze": 53.4,
     "silver": 16.7,
-    "gold": 78.6
+    "gold": 245.6
   }
 }

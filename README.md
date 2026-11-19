@@ -28,7 +28,7 @@ etl/                 pipeline PySpark em arquitetura medalhão
   gold.py            distribuição de notas e estatísticas por recorte (o que a API lê)
   volumetria.py      tamanho e linhas de cada camada -> volumetria.json
   run_pipeline.py    baixa o que faltar e executa as três camadas, medindo o tempo
-data/gold/           camada Gold versionada (~11 MB): a API lê daqui, sem reprocessar
+data/gold/           camada Gold versionada (~16 MB): a API lê daqui, sem reprocessar
 facilita-backend/    API em FastAPI (percentil, Z-Score e módulos comparativos)
 facilita-frontend/   interface em React + Chakra UI
 public/docs/         plano de projeto
@@ -38,8 +38,8 @@ public/docs/         plano de projeto
 
 Os microdados do INEP são pesados (ZIPs de ~2 GB por ano, ~3,3 GB de CSV depois
 de extrair) e demoram muito para baixar. Para evitar esse custo no dia a dia, **a
-camada Gold já vem versionada no repositório** (`data/gold/`, ~11 MB). Ela é tudo
-o que o back-end lê — então, para rodar a API, **você não precisa baixar nem
+camada Gold já vem versionada no repositório** (`data/gold/`, ~16 MB). Ela é tudo
+o que o back-end lê. Então, para rodar a API, **você não precisa baixar nem
 reprocessar nada**. Baixe os microdados apenas quando quiser regenerar a Gold (por
 exemplo, ao incluir uma nova edição do ENEM).
 
