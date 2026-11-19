@@ -34,6 +34,12 @@ PUBLIC = RAIZ / "public"
 PEDACO = 1024 * 1024  # 1 MiB por leitura, para barra de progresso e baixo uso de memória
 TENTATIVAS = 4  # o INEP derruba conexões de forma intermitente; vale repetir
 
+# Um ZIP de microdados do INEP tem centenas de MB. Abaixo deste piso, o que
+# "baixou" é quase certamente uma página de erro/redirect disfarçada de ZIP
+# (foi o que gerou o BadZipFile: o curl salvou um corpo de ~45 KB com status 200).
+MINIMO_ZIP_BYTES = 10 * 1024 * 1024  # 10 MiB
+ASSINATURA_ZIP = b"PK\x03\x04"  # todo ZIP começa com esta marca
+
 # O download.inep.gov.br frequentemente recusa clientes que não parecem um
 # navegador (devolve ConnectionReset no handshake). Estes cabeçalhos imitam um.
 CABECALHOS = {
@@ -63,6 +69,27 @@ def sha256_de(caminho: Path) -> str:
         for bloco in iter(lambda: f.read(PEDACO), b""):
             h.update(bloco)
     return h.hexdigest()
+
+
+def motivo_zip_invalido(caminho: Path) -> str | None:
+    """Devolve o motivo de o arquivo não ser um ZIP de microdados válido, ou None se estiver ok.
+
+    Protege contra o download "com sucesso" do arquivo errado: o INEP responde a
+    alguns clientes com um redirect/HTML curto (status 200), que seria aceito como
+    ZIP e só estouraria depois, na extração, com um BadZipFile confuso.
+    """
+    if not caminho.exists():
+        return "arquivo não foi criado"
+    tamanho = caminho.stat().st_size
+    if tamanho < MINIMO_ZIP_BYTES:
+        return (
+            f"tem só {tamanho / 1e6:,.2f} MB (mínimo esperado: {MINIMO_ZIP_BYTES / 1e6:,.0f} MB) — "
+            "provavelmente uma página de erro/redirect do INEP, não o ZIP"
+        )
+    with caminho.open("rb") as f:
+        if f.read(4) != ASSINATURA_ZIP:
+            return "não começa com a assinatura de um ZIP (PK\\x03\\x04)"
+    return None
 
 
 def _abrir(url: str, contexto: ssl.SSLContext | None, desde: int = 0):
@@ -130,6 +157,9 @@ def _baixar_curl(url: str, parcial: Path) -> bool:
     print("  tentando com curl (fallback)…")
     comando = [
         curl, "-L", "--fail", "--retry", "5", "--retry-delay", "3",
+        # Trata o redirect como erro em vez de salvar o corpo dele como "arquivo":
+        # era o 307 do INEP virando um ZIP de 45 KB e estourando na extração.
+        "--max-redirs", "10",
         "-C", "-",  # retoma download parcial
         "-A", CABECALHOS["User-Agent"],
         "-o", str(parcial), url,
@@ -148,7 +178,22 @@ def baixar(url: str, destino: Path) -> None:
     parcial = destino.with_suffix(destino.suffix + ".parcial")
     destino.parent.mkdir(parents=True, exist_ok=True)
     if _baixar_urllib(url, parcial) or _baixar_curl(url, parcial):
-        # A integridade real é conferida depois pelo SHA-256 em fontes.json.
+        # Um download pode "terminar com sucesso" e ainda ser o arquivo errado
+        # (página de erro/redirect do INEP salva como ZIP). Validamos antes de
+        # aceitar; a integridade exata é conferida depois pelo SHA-256.
+        motivo = motivo_zip_invalido(parcial)
+        if motivo:
+            baixado = parcial.stat().st_size if parcial.exists() else 0
+            parcial.unlink(missing_ok=True)  # não deixa lixo para a próxima execução "reaproveitar"
+            raise RuntimeError(
+                f"O download de {url} terminou, mas o arquivo é inválido: {motivo}.\n"
+                f"(baixou {baixado / 1e6:,.2f} MB)\n"
+                "O servidor do INEP devolveu um redirect/erro em vez do ZIP. Alternativas:\n"
+                f"  1. Baixe o arquivo pelo navegador a partir do portal do INEP e salve em:\n"
+                f"       {destino.parent / (destino.stem + '.zip')}\n"
+                "     Depois rode o pipeline de novo (ele reaproveita o ZIP que já está lá).\n"
+                "  2. Rode de novo mais tarde (o portal costuma oscilar)."
+            )
         parcial.replace(destino)
         return
     raise RuntimeError(
@@ -194,15 +239,21 @@ def processar_ano(ano: str, fonte: dict, so_verificar: bool, manter_zip: bool) -
         print(f"[{ano}] CSV ausente — rode sem --verificar para baixar")
         return False
 
-    # Reaproveita um ZIP já baixado se o tamanho bater; senão (re)baixa.
+    # Reaproveita um ZIP já baixado se for válido e o tamanho bater; senão (re)baixa.
+    # A validação aqui também descarta um ZIP-lixo deixado por uma execução antiga.
     precisa_baixar = True
     if zip_path.exists():
-        tamanho = zip_path.stat().st_size
-        if esperado_bytes in (None, tamanho):
-            print(f"[{ano}] ZIP já baixado ({tamanho / 1e6:,.0f} MB), reaproveitando")
-            precisa_baixar = False
+        motivo = motivo_zip_invalido(zip_path)
+        if motivo:
+            print(f"[{ano}] ZIP existente é inválido ({motivo}); rebaixando")
+            zip_path.unlink(missing_ok=True)
         else:
-            print(f"[{ano}] ZIP existente tem tamanho inesperado ({tamanho} != {esperado_bytes}); rebaixando")
+            tamanho = zip_path.stat().st_size
+            if esperado_bytes in (None, tamanho):
+                print(f"[{ano}] ZIP já baixado ({tamanho / 1e6:,.0f} MB), reaproveitando")
+                precisa_baixar = False
+            else:
+                print(f"[{ano}] ZIP existente tem tamanho inesperado ({tamanho} != {esperado_bytes}); rebaixando")
 
     if precisa_baixar:
         print(f"[{ano}] baixando de {fonte['url']}")
