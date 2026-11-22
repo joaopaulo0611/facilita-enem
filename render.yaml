@@ -1,0 +1,14 @@
+# Configuração de deploy do back-end no Render (plano Free).
+# Blueprint: https://render.com/docs/infrastructure-as-code
+#
+# O Render injeta a porta em $PORT; por isso o startCommand não fixa 8001.
+# healthCheckPath usa a rota raiz "/" que a API já expõe.
+services:
+  - type: web
+    name: radar-enem-api
+    runtime: python
+    plan: free
+    rootDir: facilita-backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
