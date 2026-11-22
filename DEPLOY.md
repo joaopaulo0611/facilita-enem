@@ -33,24 +33,19 @@ navegador ──►  https://SEU-SITE.vercel.app          (front-end, Vercel)
 Esses dois arquivos deixam o deploy reproduzível e sem cliques manuais de
 configuração. **Crie e commite os dois antes de começar.**
 
-### 0.1 `facilita-backend/render.yaml` (opcional, mas recomendado)
+### 0.1 `render.yaml` (raiz do repositório)
 
-Descreve o serviço para o Render. Coloque na **raiz do repositório**:
+Descreve o serviço para o Render e já está na raiz do repositório. Pontos importantes:
 
-```yaml
-services:
-  - type: web
-    name: radar-enem-api
-    runtime: python
-    plan: free
-    rootDir: facilita-backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /
-```
-
-> O Render injeta a porta na variável `$PORT`; por isso o `startCommand` **não**
-> fixa `8001`. O `healthCheckPath: /` usa a rota raiz que a API já expõe.
+- **Sem Root Directory.** A API lê a Gold em `data/gold/`, que fica fora de
+  `facilita-backend/`. Por isso o serviço usa o repositório inteiro, e os comandos
+  entram na pasta da API:
+  - build: `pip install -r facilita-backend/requirements.txt`
+  - start: `cd facilita-backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
+- **Variáveis de memória.** O plano Free tem 512 MB. `ARROW_DEFAULT_MEMORY_POOL=system`
+  e `MALLOC_ARENA_MAX=2` baixam o pico ao carregar a Gold para cerca de 400 MB.
+- **Python 3.12.3**, a mesma versão dos testes locais (`PYTHON_VERSION`).
+- O Render injeta a porta em `$PORT`, por isso o start não fixa `8001`.
 
 ### 0.2 `facilita-frontend/vercel.json`
 
@@ -70,29 +65,29 @@ Coloque dentro de `facilita-frontend/`:
 
 ---
 
-## Parte 1 — Back-end no Render
+## Parte 1: back-end no Render
+
+Use o **Blueprint**, que lê o `render.yaml` com todas as configurações acima.
 
 1. Entre em <https://render.com> com sua conta do GitHub.
-2. No painel, clique em **New +** → **Web Service**.
-3. Conecte o repositório `facilita-enem` (autorize o GitHub se for a primeira vez).
-4. Preencha as configurações do serviço:
-   - **Name:** `radar-enem-api` (ou o que preferir; vira parte da URL).
-   - **Region:** a mais próxima (ex.: *Oregon* ou a disponível).
-   - **Branch:** `main`.
-   - **Root Directory:** `facilita-backend`
-   - **Runtime / Language:** `Python 3`.
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **Instance Type:** **Free**.
-5. Clique em **Create Web Service**. O Render instala as dependências e sobe a API
-   (o primeiro build leva alguns minutos).
-6. Quando aparecer **Live**, copie a URL pública, algo como
-   `https://radar-enem-api.onrender.com`.
-7. **Teste** abrindo no navegador:
-   - `https://radar-enem-api.onrender.com/` → deve responder `["Facilita ENEM"]`.
-   - `https://radar-enem-api.onrender.com/docs` → documentação interativa da API.
-   - `https://radar-enem-api.onrender.com/api/metadados` → deve trazer os anos
-     `[2022, 2023]` e o total de participantes.
+2. No painel, clique em **New +** → **Blueprint**.
+3. Conecte o repositório `facilita-enem` (autorize o GitHub se for a primeira vez)
+   e escolha a branch `main`.
+4. O Render mostra o serviço `radar-enem-api` lido do `render.yaml`, no plano Free.
+   Clique em **Apply** (ou **Deploy Blueprint**).
+5. Espere o primeiro build (alguns minutos). Quando aparecer **Live**, copie a URL
+   pública, algo como `https://radar-enem-api.onrender.com`.
+6. **Teste** no navegador:
+   - `https://radar-enem-api.onrender.com/` deve responder `["Facilita ENEM"]`;
+   - `https://radar-enem-api.onrender.com/docs` abre a documentação interativa;
+   - `https://radar-enem-api.onrender.com/api/metadados` traz os anos `[2022, 2023]`
+     e o total de participantes. É a primeira rota que carrega a Gold, então pode
+     levar alguns segundos.
+
+**Se preferir criar à mão** (New + → Web Service), deixe o **Root Directory vazio**,
+use o build e o start da seção 0.1, escolha o plano **Free** e, em **Environment**,
+adicione as três variáveis: `PYTHON_VERSION=3.12.3`,
+`ARROW_DEFAULT_MEMORY_POOL=system` e `MALLOC_ARENA_MAX=2`.
 
 > **Importante sobre o plano Free do Render:** o serviço "dorme" após ~15 minutos
 > sem acesso. A requisição seguinte acorda a API, e essa primeira resposta demora
@@ -192,8 +187,7 @@ PDF e fecho a entrega.
 ## Resumo rápido
 
 1. Commite `render.yaml` (raiz) e `facilita-frontend/vercel.json`.
-2. **Render:** New Web Service → root `facilita-backend` → start
-   `uvicorn main:app --host 0.0.0.0 --port $PORT` → plano Free → copie a URL.
+2. **Render:** New + → Blueprint → repositório `facilita-enem` → Apply → copie a URL.
 3. Atualize o `vercel.json` com a URL do Render e dê push.
 4. **Vercel:** Import Project → root `facilita-frontend` → preset Vite → Deploy →
    copie a URL.

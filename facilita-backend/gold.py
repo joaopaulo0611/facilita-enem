@@ -10,6 +10,7 @@ Os anos são somados numa base só: a nota do ENEM é calculada pela TRI para
 ser comparável entre edições, então o participante é comparado com todos
 os anos disponíveis, e não com um ano escolhido.
 """
+from collections.abc import Iterable
 from dataclasses import dataclass
 from math import sqrt
 from pathlib import Path
@@ -27,6 +28,11 @@ GOLD = RAIZ / "data" / "gold"
 N_MINIMO = 100
 
 CHAVE = ["NU_ANO", "AREA", "RECORTE", "CATEGORIA"]
+
+# Linhas lidas do Parquet por vez ao carregar a Gold.
+LOTE = 250_000
+# Bits reservados para o número de cada texto da chave (até ~1 milhão de valores distintos).
+BITS_ROTULO = 20
 
 
 @dataclass(frozen=True)
@@ -82,36 +88,68 @@ class Gold:
 
     @classmethod
     def carregar(cls, pasta: Path = GOLD) -> "Gold":
-        """Um ano por vez, com o texto lido como dicionário, para o pico de memória caber num servidor pequeno."""
+        """Um ano por vez e em lotes, para o pico de memória caber no plano grátis do Render (512 MB)."""
         gold = cls(pd.read_parquet(pasta / "estatisticas"))
         for pasta_ano in sorted((pasta / "distribuicao_notas").glob("NU_ANO=*")):
             ano = int(pasta_ano.name.split("=")[1])
-            gold.adicionar_ano(ano, pq.read_table(pasta_ano, read_dictionary=CHAVE[1:]))
+            lotes = (
+                lote
+                for arquivo in sorted(pasta_ano.glob("*.parquet"))
+                for lote in pq.ParquetFile(arquivo, read_dictionary=CHAVE[1:]).iter_batches(
+                    batch_size=LOTE, columns=[*CHAVE[1:], "NOTA", "QTD"], use_threads=False
+                )
+            )
+            gold.adicionar_ano(ano, lotes)
             pa.default_memory_pool().release_unused()
         return gold
 
-    def adicionar_ano(self, ano: int, distribuicao: pa.Table) -> None:
-        """Ordena o ano uma vez e soma cada grupo ao que já veio dos anos anteriores."""
-        codigos, rotulos = [], []
-        for coluna in CHAVE[1:]:
-            dicionario = distribuicao[coluna]
-            if not pa.types.is_dictionary(dicionario.type):
-                dicionario = pc.dictionary_encode(dicionario)
-            dicionario = dicionario.unify_dictionaries().combine_chunks()
-            codigos.append(dicionario.indices.to_numpy().astype(np.int32))
-            rotulos.append(dicionario.dictionary.to_pylist())
-        nota = distribuicao["NOTA"].to_numpy()
-        qtd = distribuicao["QTD"].to_numpy()
+    def adicionar_ano(self, ano: int, distribuicao: pa.Table | Iterable[pa.RecordBatch]) -> None:
+        """Soma cada grupo do ano ao que já veio dos anos anteriores.
 
-        ordem = np.lexsort((nota, *reversed(codigos)))
-        nota, acumulado = nota[ordem], qtd[ordem].cumsum()
-        chave = np.stack([c[ordem] for c in codigos])
-        del ordem, codigos
-        inicios = np.flatnonzero(np.r_[True, (chave[:, 1:] != chave[:, :-1]).any(axis=0)])
+        Cada lote vira na hora três vetores compactos (grupo, nota e quantidade) e é
+        descartado, então a tabela do ano inteiro nunca fica em memória de uma vez.
+        """
+        lotes = distribuicao.to_batches() if isinstance(distribuicao, pa.Table) else distribuicao
+        # Cada texto (área, recorte, categoria) ganha um número; o grupo vira um único inteiro
+        # com os três números, para separar e ordenar sem guardar o texto de cada linha.
+        rotulos: list[dict[str, int]] = [{}, {}, {}]
+        partes_grupo, partes_nota, partes_qtd = [], [], []
+        for lote in lotes:
+            grupo = np.zeros(lote.num_rows, np.int64)
+            for posicao, coluna in enumerate(CHAVE[1:]):
+                valores = lote.column(coluna)
+                if not pa.types.is_dictionary(valores.type):
+                    valores = pc.dictionary_encode(valores)
+                numeros = rotulos[posicao]
+                traducao = np.array([numeros.setdefault(t, len(numeros)) for t in valores.dictionary.to_pylist()], np.int64)
+                grupo = (grupo << BITS_ROTULO) | traducao[valores.indices.to_numpy()]
+            partes_grupo.append(grupo)
+            partes_nota.append(lote.column("NOTA").to_numpy())
+            partes_qtd.append(lote.column("QTD").to_numpy().astype(np.int64))
+        if not partes_nota:
+            return
+        grupo, nota, qtd = (np.concatenate(p) for p in (partes_grupo, partes_nota, partes_qtd))
+        del partes_grupo, partes_nota, partes_qtd
+        textos = [list(numeros) for numeros in rotulos]
+
+        # O ETL já grava cada ano ordenado por grupo e nota; só reordena se não vier assim.
+        inicios = np.flatnonzero(np.r_[True, grupo[1:] != grupo[:-1]])
+        contiguo = len(inicios) == len(np.unique(grupo[inicios]))
+        if not (contiguo and np.all((np.diff(nota) > 0) | (np.diff(grupo) != 0))):
+            ordem = np.lexsort((nota, grupo))
+            grupo, nota, qtd = grupo[ordem], nota[ordem], qtd[ordem]
+            del ordem
+            inicios = np.flatnonzero(np.r_[True, grupo[1:] != grupo[:-1]])
         fins = np.r_[inicios[1:], len(nota)]
+        mascara = (1 << BITS_ROTULO) - 1
 
         for inicio, fim in zip(inicios, fins):
-            area, recorte, categoria = (rotulos[i][chave[i, inicio]] for i in range(3))
+            numero = int(grupo[inicio])
+            area, recorte, categoria = (
+                textos[0][numero >> 2 * BITS_ROTULO],
+                textos[1][(numero >> BITS_ROTULO) & mascara],
+                textos[2][numero & mascara],
+            )
             try:
                 est = self.estatisticas.loc[(ano, area, recorte, categoria)]
             except KeyError as erro:
@@ -123,10 +161,10 @@ class Gold:
                     "distribuicao_notas mas não em estatisticas. Rode o ETL (etl/gold.py) de novo "
                     "para regerar as duas tabelas juntas."
                 ) from erro
-            antes = acumulado[inicio - 1] if inicio > 0 else 0
+            # Cópias próprias de cada grupo: assim os vetores do ano inteiro são liberados.
             novo = Grupo(
-                notas=nota[inicio:fim],
-                acumulado=acumulado[inicio:fim] - antes,
+                notas=nota[inicio:fim].copy(),
+                acumulado=qtd[inicio:fim].cumsum(),
                 media=float(est["MEDIA"]),
                 desvio=float(est["DESVIO_PADRAO"]),
             )
