@@ -1,14 +1,30 @@
 # Configuração de deploy do back-end no Render (plano Free).
 # Blueprint: https://render.com/docs/infrastructure-as-code
 #
+# Sem rootDir: a API lê a Gold em data/gold/, fora de facilita-backend/, então o
+# serviço precisa do repositório inteiro. Os comandos entram na pasta da API.
 # O Render injeta a porta em $PORT; por isso o startCommand não fixa 8001.
-# healthCheckPath usa a rota raiz "/" que a API já expõe.
+# healthCheckPath usa a rota raiz "/" que a API já expõe (não carrega a Gold).
 services:
   - type: web
     name: radar-enem-api
     runtime: python
     plan: free
-    rootDir: facilita-backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r facilita-backend/requirements.txt
+    startCommand: cd facilita-backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
+    # Só refaz o deploy quando muda a API ou a Gold.
+    buildFilter:
+      paths:
+        - facilita-backend/**
+        - data/gold/**
+    envVars:
+      # Mesma versão usada nos testes locais.
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      # Alocador do sistema: o pico de memória ao carregar a Gold cai de ~470 MB
+      # para ~400 MB, com folga no limite de 512 MB do plano Free.
+      - key: ARROW_DEFAULT_MEMORY_POOL
+        value: system
+      - key: MALLOC_ARENA_MAX
+        value: "2"
