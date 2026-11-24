@@ -21,7 +21,8 @@ from .ferramentas import NOME_AREAS
 # Intenções reconhecidas na Fase 1 (cada uma atendida por uma ferramenta controlada).
 INTENCOES = (
     "ajuda",                 # "o que você faz", "como funciona"
-    "programas",             # ProUni, FIES (ainda não avaliados)
+    "prouni",                # "eu me enquadro no ProUni?" (com o número de pessoas da família)
+    "programas",             # FIES (ainda não avaliado)
     "cursos_ao_alcance",     # "em que cursos eu teria passado" (SISU 2024, ampla concorrência)
     "limitacoes",            # "quais as limitações dos dados"
     "interpretar_percentil", # "como interpretar meu percentil"
@@ -57,7 +58,8 @@ class ProvedorSimulado:
     # A ordem importa: a primeira regra que casa vence, da mais específica à mais geral.
     _REGRAS = [
         (r"\b(o que (voce|vc) faz|como (voce|vc) funciona|o que posso perguntar|em que.*ajuda|(me )?ajuda\b|pra que (voce|serve))", "ajuda"),
-        (r"\b(prouni|fies|bolsa|financiamento)", "programas"),
+        (r"\b(prouni|bolsa)|\b(somos|moramos|vivemos|moro)\b.*\b(pessoas?|sozinh)|\bfamilia de \d", "prouni"),
+        (r"\b(fies|financiamento)", "programas"),
         (r"\b(curso|faculdade|universidade|federal|medicina|direito|engenharia|sisu|passar|passaria|passado|entrar|me inscrever|inscricao|vaga|nota de corte|carreira|profissao|alcan)", "cursos_ao_alcance"),
         (r"\b(limita|restri|confia|margem de erro|precis(a|ao)|os dados valem|de onde vem)", "limitacoes"),
         (r"\b(interpret|entender|o que significa).*percentil|percentil.*(interpret|significa|quer dizer)", "interpretar_percentil"),
@@ -82,7 +84,7 @@ class ProvedorSimulado:
             return {"termo": pergunta_original}
         if nome == "posicao_area":
             return {"area": self._area_citada(p)}
-        if nome == "cursos_ao_alcance":
+        if nome in ("cursos_ao_alcance", "prouni"):
             return {"pergunta": pergunta_original}
         return {}
 

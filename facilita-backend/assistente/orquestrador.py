@@ -26,6 +26,7 @@ SUGESTOES_INICIAIS = (
     "Quais são as limitações dos dados?",
     "Em que cursos eu teria passado?",
     "Quais cursos de Medicina eu alcançaria?",
+    "Eu me enquadro no ProUni?",
 )
 
 
@@ -58,6 +59,8 @@ class Orquestrador:
         nome = intent.nome
         if nome == "ajuda":
             return F.ajuda()
+        if nome == "prouni":
+            return F.elegibilidade_prouni(resultado, intent.parametros.get("pergunta", ""), perfil)
         if nome == "programas":
             return F.fora_de_escopo_inscricao()
         if nome == "cursos_ao_alcance":
