@@ -1,6 +1,7 @@
-import { Badge, Box, Container, Flex, Image, Link, Text } from '@chakra-ui/react'
+import { Badge, Box, Container, Flex, HStack, Image, Link, Text } from '@chakra-ui/react'
 import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined'
 import Icone from './Icone'
+import { BotaoModoCor } from './modo-cor'
 
 export default function Cabecalho() {
   return (
@@ -13,11 +14,14 @@ export default function Cabecalho() {
               Radar ENEM
             </Text>
           </Link>
-          <Badge colorPalette="green" variant="subtle" rounded="full" px="3" py="1" gap="1.5" fontWeight="normal">
-            <Icone de={VerifiedOutlined} tamanho={16} />
-            <Text as="span" hideBelow="sm">Microdados oficiais do INEP</Text>
-            <Text as="span" hideFrom="sm">Dados INEP</Text>
-          </Badge>
+          <HStack gap={{ base: 2, sm: 3 }}>
+            <Badge colorPalette="green" variant="subtle" rounded="full" px="3" py="1" gap="1.5" fontWeight="normal">
+              <Icone de={VerifiedOutlined} tamanho={16} />
+              <Text as="span" hideBelow="sm">Microdados oficiais do INEP</Text>
+              <Text as="span" hideFrom="sm">Dados INEP</Text>
+            </Badge>
+            <BotaoModoCor />
+          </HStack>
         </Flex>
       </Container>
     </Box>
