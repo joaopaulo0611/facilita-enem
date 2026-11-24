@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { buscarMetadados, buscarRadar } from './api'
 import { AREAS, CAMPOS_PERGUNTA } from './campos'
 import AreaAArea from './componentes/AreaAArea'
+import Assistente from './componentes/assistente/Assistente'
 import Cabecalho from './componentes/Cabecalho'
 import Comparativos from './componentes/Comparativos'
 import FormularioPerfil from './componentes/FormularioPerfil'
@@ -193,6 +194,8 @@ export default function App() {
           </Flex>
         </Container>
       </Box>
+
+      <Assistente resultado={enviado?.resultado ?? null} />
     </Box>
   )
 }
