@@ -11,6 +11,12 @@ __pycache__/
 # repositório (ou o servidor do deploy) roda a API sem reprocessar os microdados.
 data/*
 !data/gold/
+# Fase 2 (inscrições): regras de ProUni/FIES e, no futuro, a base de corte do
+# SISU tratada. As regras são JSON pequeno e mantido à mão (config, não saída de
+# pipeline), então ficam versionadas, como a Gold.
+!data/inscricoes/
+data/inscricoes/*
+!data/inscricoes/*.json
 # Arquivos de checksum que o Spark grava ao lado de cada Parquet.
 *.crc
 
