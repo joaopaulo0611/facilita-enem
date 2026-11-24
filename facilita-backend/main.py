@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from assistente_routes import assistente_router
 from auth_routes import auth_router
 from familia_routes import familia_router
 from gold import GrupoInexistente
@@ -44,3 +45,4 @@ app.include_router(radar_router)
 app.include_router(regional_router)
 app.include_router(origem_router)
 app.include_router(familia_router)
+app.include_router(assistente_router)

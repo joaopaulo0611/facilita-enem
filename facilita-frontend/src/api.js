@@ -28,3 +28,25 @@ export const buscarRadar = (notas) => buscar('radar', notas)
 export const buscarRegional = (parametros) => buscar('modulos/regional', parametros)
 export const buscarOrigem = (parametros) => buscar('modulos/origem', parametros)
 export const buscarFamilia = (parametros) => buscar('modulos/familia', parametros)
+
+export const buscarSugestoesAssistente = () => buscar('assistente/sugestoes')
+
+/** Envia a pergunta e, se houver, o resultado já calculado no radar. */
+export async function perguntarAssistente(pergunta, resultado = null) {
+  let resposta
+  try {
+    resposta = await fetch('/api/assistente/pergunta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pergunta, resultado }),
+    })
+  } catch {
+    throw new ErroApi('Não foi possível falar com o assistente. Confira sua conexão e tente de novo.')
+  }
+  const corpo = await resposta.json().catch(() => null)
+  if (!resposta.ok) {
+    const mensagem = typeof corpo?.detail === 'string' ? corpo.detail : 'O assistente não conseguiu responder agora. Tente de novo.'
+    throw new ErroApi(mensagem)
+  }
+  return corpo
+}
