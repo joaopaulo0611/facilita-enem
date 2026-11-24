@@ -13,7 +13,8 @@ from __future__ import annotations
 import re
 
 import inscricoes as I
-from rotulos import AREAS, UF
+import prouni as P
+from rotulos import AREAS, RENDA, UF
 
 from . import glossario as G
 from .resposta import Evidencia, Resposta, Tipo
@@ -153,23 +154,22 @@ def ajuda() -> Resposta:
         "- Dizer em que **cursos do SISU** você teria passado, comparando a sua nota com as notas de corte "
         "de 2024 (ampla concorrência), com filtro por curso e por estado;\n"
         "- Esclarecer as **limitações** dos dados.\n\n"
-        "Ainda **não** sei avaliar ProUni e FIES; isso fica para uma próxima versão."
+        "- Dizer se você se enquadra no **ProUni**, a partir da sua nota, da escola e da renda por pessoa da família.\n\n"
+        "Ainda **não** sei avaliar o FIES; isso fica para uma próxima versão."
     )
     return Resposta(Tipo.CONCEITO, texto)
 
 
 def fora_de_escopo_inscricao() -> Resposta:
-    """ProUni e FIES: ainda não avaliamos (as regras dependem da renda por pessoa da família)."""
+    """FIES: ainda não avaliamos."""
     texto = (
-        "Ainda **não** sei avaliar **ProUni** nem **FIES**. Esses programas não têm nota de corte por curso: "
-        "exigem média de pelo menos 450 pontos, redação acima de zero e um limite de renda **por pessoa** da "
-        "família, que o Radar ainda não pergunta. Para universidades públicas, já consigo comparar a sua nota "
-        "com as notas de corte do **SISU**."
+        "Ainda **não** sei avaliar o **FIES** (financiamento). Já consigo dizer se você se enquadra no "
+        "**ProUni** (bolsas em faculdades privadas) e em que cursos do **SISU** você teria passado."
     )
     return Resposta(
         Tipo.SEM_DADOS,
         texto,
-        sugestoes=("Em que cursos eu teria passado?", "Resuma o meu resultado"),
+        sugestoes=("Eu me enquadro no ProUni? Moramos em 4 pessoas.", "Em que cursos eu teria passado?"),
     )
 
 
@@ -321,6 +321,127 @@ def cursos_ao_alcance(resultado: dict | None, pergunta: str, perfil: dict | None
             ),
         ),
         sugestoes=("Quais cursos de Medicina eu alcançaria?", "Em que cursos eu teria passado em Santa Catarina?"),
+    )
+
+
+_NUMEROS = {"um": 1, "uma": 1, "dois": 2, "duas": 2, "tres": 3, "quatro": 4, "cinco": 5, "seis": 6,
+            "sete": 7, "oito": 8, "nove": 9, "dez": 10}
+
+
+def pessoas_citadas(pergunta: str) -> int | None:
+    """Número de pessoas da família citado na pergunta ("moramos em 4 pessoas", "somos três", "moro sozinho")."""
+    texto = I.sem_acento(pergunta)
+    if re.search(r"\b(moro|vivo) sozinh[oa]\b", texto):
+        return 1
+    numero = r"(\d{1,2}|" + "|".join(_NUMEROS) + r")"
+    padroes = (
+        rf"\b{numero}\s+(pessoas?|moradores?|integrantes?|membros?)\b",
+        rf"\b(somos|moramos|vivemos)\s+(em\s+)?{numero}\b",
+        rf"\bfamilia\s+de\s+{numero}\b",
+    )
+    for padrao in padroes:
+        achado = re.search(padrao, texto)
+        if achado:
+            valor = next(g for g in achado.groups() if g and (g.isdigit() or g in _NUMEROS))
+            pessoas = int(valor) if valor.isdigit() else _NUMEROS[valor]
+            return pessoas if 1 <= pessoas <= 30 else None
+    return None
+
+
+def _sm(valor: float) -> str:
+    """Salários mínimos com até duas casas, sem zeros sobrando: 1,5 e 0,75."""
+    return _num(valor, 2).rstrip("0").rstrip(",")
+
+
+def elegibilidade_prouni(resultado: dict | None, pergunta: str, perfil: dict | None = None) -> Resposta:
+    """Diz se a pessoa se enquadra no ProUni (integral, parcial ou não), critério por critério."""
+    notas = {a["area"]: a["nota"] for a in (resultado or {}).get("areas") or []}
+    if set(notas) != set(I.AREAS):
+        return Resposta(Tipo.SEM_DADOS, _PEDIR_RADAR)
+    perfil = perfil or {}
+    pessoas = pessoas_citadas(pergunta)
+    av = P.avaliar(notas, perfil.get("tipo_escola") or None, perfil.get("renda") or None, pessoas)
+
+    nota = (
+        f"- **Nota:** média das 5 provas {_num(av.media)} pts e redação {_num(av.redacao)}. "
+        + ("Atende (mínimo de 450 e redação acima de zero)." if av.nota_ok else "**Não atende**: o mínimo é média 450 e redação acima de zero.")
+    )
+    if av.escola_publica is None:
+        escola = "- **Escola:** não sei. Marque a pergunta **Sua origem** no formulário para informar o tipo de escola."
+    elif av.escola_publica:
+        escola = "- **Escola:** pública. Atende (o ProUni exige ensino médio todo em escola pública ou como bolsista integral)."
+    else:
+        escola = (
+            "- **Escola:** privada. Só atende se você foi **bolsista integral** da escola, ou se é pessoa com "
+            "deficiência ou professor da rede pública, casos que o Radar não pergunta."
+        )
+
+    renda_total = perfil.get("renda")
+    if not renda_total:
+        renda = "- **Renda:** não sei. Marque a pergunta **Sua família** no formulário para informar a renda."
+    elif not pessoas:
+        renda = (
+            f"- **Renda:** a sua família ganha {RENDA[renda_total].lower()} no total, mas o ProUni olha a renda "
+            "**por pessoa**. Quantas pessoas moram na sua casa, contando você? Pergunte de novo dizendo, por "
+            "exemplo: *Eu me enquadro no ProUni? Moramos em 4 pessoas.*"
+        )
+    else:
+        minimo, maximo = av.faixa_por_pessoa
+        faixa = f"mais de {_sm(minimo)}" if maximo == float("inf") else (
+            f"até {_sm(maximo)}" if minimo == 0 else f"de {_sm(minimo)} a {_sm(maximo)}"
+        )
+        unidade = "salário mínimo" if maximo <= 1 else "salários mínimos"
+        renda = (
+            f"- **Renda por pessoa:** a renda total da família ({RENDA[renda_total].lower()}) dividida por "
+            f"{pessoas} {'pessoa' if pessoas == 1 else 'pessoas'} dá **{faixa} {unidade}** por pessoa. Limites: até "
+            f"{_sm(av.limite_integral)} para a bolsa integral e até {_sm(av.limite_parcial)} para a parcial."
+        )
+
+    if not av.nota_ok:
+        conclusao = "Pela nota, você **não** poderia concorrer ao ProUni."
+    elif av.escola_publica is False:
+        conclusao = "Pela escola, você só poderia concorrer se foi bolsista integral no ensino médio (ou nos outros casos acima)."
+    elif av.escola_publica is None or av.renda is None:
+        conclusao = "A nota atende. Para eu dizer se você se enquadra, faltam as informações acima."
+    else:
+        conclusao = {
+            P.INTEGRAL: "Pelo que o Radar sabe, você poderia concorrer à **bolsa integral (100%)**.",
+            P.PARCIAL: "Pelo que o Radar sabe, você poderia concorrer à **bolsa parcial (50%)**, mas não à integral.",
+            P.INTEGRAL_OU_PARCIAL: (
+                f"Você poderia concorrer pelo menos à **bolsa parcial (50%)**. A **integral** depende do valor exato: "
+                f"vale se a renda por pessoa for de até {_sm(av.limite_integral)} salário mínimo."
+            ),
+            P.PARCIAL_OU_NAO: (
+                f"Depende do valor exato da renda: com até {_sm(av.limite_parcial)} salários mínimos por pessoa, "
+                f"você poderia concorrer à bolsa parcial (ou à integral, com até {_sm(av.limite_integral)}); acima disso, não."
+            ),
+            P.ACIMA: "Pela renda por pessoa, você **não** se enquadraria no ProUni.",
+        }[av.renda]
+
+    texto = "\n".join([
+        f"**ProUni** (bolsas em faculdades privadas), pelas regras de {av.ano_referencia}:",
+        "",
+        nota,
+        escola,
+        renda,
+        "",
+        conclusao,
+        "",
+        "**Atenção:** também não pode ter diploma de curso superior, e treineiros não concorrem. Cada curso tem "
+        "uma nota de corte própria no ProUni, que o Radar ainda não tem. Confira as regras no edital da edição.",
+    ])
+    return Resposta(
+        Tipo.DADO,
+        texto,
+        evidencia=Evidencia(
+            ferramenta="prouni.elegibilidade",
+            fonte="Regras do ProUni (MEC: prouniportal.mec.gov.br e gov.br), versionadas em data/inscricoes/regras_prouni_fies.json",
+            periodo=f"regras de {av.ano_referencia}",
+            abrangencia="Programa Universidade para Todos (bolsas em instituições privadas)",
+            recorte="Nota do radar, escola e renda do formulário" + (f", {pessoas} pessoas na família" if pessoas else ""),
+            limitacoes="A renda vem em faixas; a renda por pessoa é estimada pela faixa dividida pelo número de pessoas.",
+        ),
+        sugestoes=("Eu me enquadro no ProUni? Moramos em 4 pessoas.", "Em que cursos eu teria passado?"),
     )
 
 
