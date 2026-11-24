@@ -53,8 +53,9 @@ coleta de cada arquivo em `etl/fontes_inscricoes.json` (ver seção 6).
   IES, sigla, município, campus, **curso**, grau (Bacharelado/Licenciatura/
   Tecnológico), turno, vagas, **código do curso**.
 - **`grades.csv`** (sem cabeçalho): código do curso + metadados do curso +
-  **pesos das cinco provas** + blocos repetidos por modalidade, cada bloco com
-  `nome_da_modalidade; inscritos; nota_de_corte; bônus; timestamp`. A primeira
+  **pesos das cinco provas**, na ordem CN, CH, LC, MT e redação, + notas mínimas
+  por prova e média mínima + blocos repetidos por modalidade, cada bloco com
+  `nome_da_modalidade; vagas; nota_de_corte; bônus; data`. A primeira
   modalidade é sempre "Ampla concorrência"; as demais são as cotas (Lei nº
   12.711/2012 e recortes regionais), com o texto descritivo da modalidade.
 
