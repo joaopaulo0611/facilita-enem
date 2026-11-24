@@ -17,6 +17,8 @@ data/*
 !data/inscricoes/
 data/inscricoes/*
 !data/inscricoes/*.json
+# Notas de corte do SISU já tratadas (etl/inscricoes.py): Parquet pequeno, lido pela API.
+!data/inscricoes/*.parquet
 # Arquivos de checksum que o Spark grava ao lado de cada Parquet.
 *.crc
 

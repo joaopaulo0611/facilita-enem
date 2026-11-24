@@ -11,21 +11,36 @@
     "apoio_comunidade": {
       "repositorio": "https://github.com/maiakanegae/sisu-data",
       "licenca": "MIT (c) 2022 Gabriel Kanegae; dados sem caráter oficial",
-      "anos_disponiveis": [2020, 2021, 2022, 2023, 2024, 2025],
+      "anos_disponiveis": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
       "arquivos_por_ano": {
         "all_courses": "data/{ano}/scraping/all_courses.csv",
         "grades": "data/{ano}/scraping/grades.csv"
       },
-      "esquema_grades": "codigo_curso; curso; grau; turno; vagas; campus; municipio; uf; ies_nome; ies_sigla; peso_lc; peso_ch; peso_cn; peso_mt; peso_redacao; [blocos de modalidade: nome; inscritos; nota_corte; bonus; timestamp]",
+      "esquema_grades": "codigo_curso; curso; grau; turno; vagas; campus; municipio; uf; ies_nome; ies_sigla; peso_cn; peso_ch; peso_lc; peso_mt; peso_redacao; nota_min_cn; nota_min_ch; nota_min_lc; nota_min_mt; nota_min_redacao; media_minima; [blocos de modalidade: nome; vagas; nota_corte; bonus_pct; data_nota_corte]",
       "observacoes": [
         "Sem cabecalho; separador ';'; campos entre aspas.",
+        "Ordem dos pesos e das notas minimas: CN, CH, LC, MT, redacao (Natureza vem primeiro). Conferido no script de coleta src/data/grades.py.",
+        "O segundo campo de cada bloco de modalidade e o numero de VAGAS da modalidade, nao de inscritos.",
         "SISU usa media PONDERADA pelos pesos de cada curso, nao a media simples.",
         "Modalidades sem candidatos tem nota_corte em branco: tratar como sem dado, nao zero.",
         "Primeira modalidade de cada bloco e 'Ampla concorrencia'; as demais sao cotas.",
         "Normalizar nomes de curso (espacos e caixa irregulares)."
       ],
-      "coletado_em": null,
-      "sha256_por_arquivo": {}
+      "coletado_em": "2026-11-24",
+      "sha256_por_arquivo": {
+        "2024/scraping/grades.csv": {
+          "sha256": "ecad819d737714024f9fd62baa63c6500a998cbc2732bea5744830ffe9bcb8f8",
+          "bytes": 11910354,
+          "url": "https://raw.githubusercontent.com/maiakanegae/sisu-data/main/data/2024/scraping/grades.csv"
+        }
+      }
     }
   },
   "prouni_fies": {

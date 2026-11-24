@@ -1,1 +1,4 @@
 pyspark==3.5.3
+# etl/inscricoes.py (SISU): base pequena, tratada com pandas e gravada em Parquet
+pandas>=2.2
+pyarrow>=17.0
