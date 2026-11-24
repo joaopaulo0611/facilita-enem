@@ -1,0 +1,39 @@
+{
+  "_comentario": "Manifesto das fontes de dados da Fase 2 (notas de corte do SISU e regras de ProUni/FIES). Espelha etl/fontes.json dos microdados. Preencher 'sha256', 'bytes' e 'coletado_em' na primeira coleta verificada de cada arquivo (null = ainda não coletado). Esta é a PREPARAÇÃO da Fase 2: nenhuma base foi baixada ainda.",
+  "sisu": {
+    "_descricao": "Notas de corte por curso, modalidade e edição. Preferir a fonte oficial do MEC; o repositório MIT serve de apoio e referência de esquema.",
+    "oficial": {
+      "portal": "https://dadosabertos.mec.gov.br/sisu",
+      "dicionario": "https://dadosabertos.mec.gov.br/sisu/item/133-dicionario-de-dados",
+      "licenca": "Dado público do governo federal",
+      "arquivos": []
+    },
+    "apoio_comunidade": {
+      "repositorio": "https://github.com/maiakanegae/sisu-data",
+      "licenca": "MIT (c) 2022 Gabriel Kanegae; dados sem caráter oficial",
+      "anos_disponiveis": [2020, 2021, 2022, 2023, 2024, 2025],
+      "arquivos_por_ano": {
+        "all_courses": "data/{ano}/scraping/all_courses.csv",
+        "grades": "data/{ano}/scraping/grades.csv"
+      },
+      "esquema_grades": "codigo_curso; curso; grau; turno; vagas; campus; municipio; uf; ies_nome; ies_sigla; peso_lc; peso_ch; peso_cn; peso_mt; peso_redacao; [blocos de modalidade: nome; inscritos; nota_corte; bonus; timestamp]",
+      "observacoes": [
+        "Sem cabecalho; separador ';'; campos entre aspas.",
+        "SISU usa media PONDERADA pelos pesos de cada curso, nao a media simples.",
+        "Modalidades sem candidatos tem nota_corte em branco: tratar como sem dado, nao zero.",
+        "Primeira modalidade de cada bloco e 'Ampla concorrencia'; as demais sao cotas.",
+        "Normalizar nomes de curso (espacos e caixa irregulares)."
+      ],
+      "coletado_em": null,
+      "sha256_por_arquivo": {}
+    }
+  },
+  "prouni_fies": {
+    "_descricao": "Regras de elegibilidade (nao ha nota de corte por curso). Versionadas como JSON em data/inscricoes/regras_prouni_fies.json, com ano de referencia e fonte.",
+    "fontes": [
+      "https://prouniportal.mec.gov.br/como-funciona",
+      "https://www.gov.br/pt-br/servicos/obter-bolsa-de-estudo-do-prouni",
+      "https://acessounico.mec.gov.br/fies"
+    ]
+  }
+}

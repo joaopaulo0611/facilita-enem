@@ -1,0 +1,42 @@
+{
+  "_comentario": "Regras de elegibilidade do ProUni e do FIES, versionadas com ano de referencia e fonte oficial. NAO sao notas de corte (esses programas nao tem corte por curso): sao criterios de regra. Revisar a cada edicao, pois mudam o salario minimo e as faixas. Valores confirmados em fontes do MEC/gov.br (ver docs/FASE2_INSCRICOES.md secao 8).",
+  "ano_referencia": 2026,
+  "nota": {
+    "_comentario": "A renda dos criterios e PER CAPITA (por pessoa da familia). O Radar coleta a faixa de renda FAMILIAR TOTAL (Q006), nao a per capita: sem o numero de pessoas na familia, so da para estimar. Ver secao 2.2 e 7 do plano.",
+    "salario_minimo_referencia_brl": null
+  },
+  "prouni": {
+    "nota_minima_media": 450,
+    "redacao_maior_que_zero": true,
+    "treineiro_nao_elegivel": true,
+    "sem_diploma_superior": true,
+    "bolsa_integral": {
+      "renda_per_capita_max_sm": 1.5,
+      "percentual_bolsa": 100
+    },
+    "bolsa_parcial": {
+      "renda_per_capita_max_sm": 3.0,
+      "percentual_bolsa": 50
+    },
+    "condicoes_adicionais_uma_exigida": [
+      "Ensino medio integralmente em escola publica",
+      "Ensino medio em escola privada como bolsista integral da propria escola",
+      "Ensino medio parcial em escola publica e parcial em privada como bolsista integral",
+      "Pessoa com deficiencia",
+      "Professor da rede publica em exercicio (apenas licenciatura; sem exigencia de renda)"
+    ]
+  },
+  "fies": {
+    "nota_minima_media": 450,
+    "redacao_maior_que_zero": true,
+    "enem_a_partir_de": 2010,
+    "regular": {
+      "renda_per_capita_max_sm": 3.0
+    },
+    "social": {
+      "renda_per_capita_max_sm": 0.5,
+      "exige_cadunico": true,
+      "_comentario": "Condicoes mais favoraveis; parte das vagas reservada ao FIES Social."
+    }
+  }
+}
