@@ -33,6 +33,8 @@ class Pergunta(BaseModel):
     # Mesmo formato que /api/radar devolve; opcional. Sem ele, o assistente pede
     # para a pessoa calcular o radar antes de interpretar as notas.
     resultado: dict | None = None
+    # Campos do formulário (renda, tipo_escola, cor_raca...), usados para as cotas do SISU; opcional.
+    perfil: dict | None = None
 
 
 @assistente_router.get("/sugestoes")
@@ -43,5 +45,5 @@ def sugestoes():
 
 @assistente_router.post("/pergunta")
 def pergunta(corpo: Pergunta):
-    resposta = _orquestrador().responde(corpo.pergunta, corpo.resultado)
+    resposta = _orquestrador().responde(corpo.pergunta, corpo.resultado, corpo.perfil)
     return resposta.to_dict()

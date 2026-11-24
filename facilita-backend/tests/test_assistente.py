@@ -79,11 +79,18 @@ def test_percentil_usa_o_numero_da_pessoa_quando_ha_resultado(assistente):
 
 # ---------------------------------------------------------------- honestidade (Fase 2)
 
-def test_inscricao_admite_que_ainda_nao_tem_os_dados(assistente):
+def test_cursos_sem_notas_pede_o_radar(assistente):
     for pergunta in ("Em que curso eu posso entrar?", "Dá pra passar em Medicina?", "Qual a nota de corte do SISU?"):
         r = assistente.responde(pergunta)
         assert r.tipo is Tipo.SEM_DADOS
-        assert "corte" in r.texto.lower() or "SISU" in r.texto
+        assert "SISU" in r.texto and "Ver meu radar" in r.texto
+
+
+def test_prouni_e_fies_admitem_que_ainda_nao_sao_avaliados(assistente):
+    for pergunta in ("Eu me enquadro no ProUni?", "Consigo o FIES?"):
+        r = assistente.responde(pergunta, RESULTADO)
+        assert r.tipo is Tipo.SEM_DADOS
+        assert "ProUni" in r.texto and "FIES" in r.texto
 
 
 def test_nunca_inventa_numero_sem_evidencia(assistente):

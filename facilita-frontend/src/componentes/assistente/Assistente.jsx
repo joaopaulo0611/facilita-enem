@@ -70,7 +70,7 @@ function Mensagem({ papel, conteudo }) {
  * A interface não calcula nada — envia a pergunta (e o resultado já calculado,
  * se houver) ao backend e mostra a resposta. O histórico vive só nesta sessão.
  */
-export default function Assistente({ resultado }) {
+export default function Assistente({ resultado, perfil }) {
   const [aberto, setAberto] = useState(false)
   const [historico, setHistorico] = useState([])
   const [texto, setTexto] = useState('')
@@ -79,9 +79,11 @@ export default function Assistente({ resultado }) {
   const fim = useRef(null)
   // Mantém o resultado atual acessível ao enviar, sem recriar o callback.
   const resultadoRef = useRef(resultado)
+  const perfilRef = useRef(perfil)
   useEffect(() => {
     resultadoRef.current = resultado
-  }, [resultado])
+    perfilRef.current = perfil
+  }, [resultado, perfil])
 
   useEffect(() => {
     buscarSugestoesAssistente()
@@ -100,7 +102,7 @@ export default function Assistente({ resultado }) {
     setHistorico((h) => [...h, { papel: 'user', conteudo: limpa }].slice(-MAX_MENSAGENS))
     setCarregando(true)
     try {
-      const resposta = await perguntarAssistente(limpa, resultadoRef.current ?? null)
+      const resposta = await perguntarAssistente(limpa, resultadoRef.current ?? null, perfilRef.current ?? null)
       setHistorico((h) => [...h, { papel: 'assistente', conteudo: resposta }].slice(-MAX_MENSAGENS))
     } catch (erro) {
       const mensagem = erro instanceof ErroApi ? erro.message : 'Não consegui responder agora. Tente de novo.'
@@ -158,8 +160,8 @@ export default function Assistente({ resultado }) {
               <Stack gap="3">
                 {historico.length === 0 && (
                   <Text textStyle="sm" color="fg.muted">
-                    Posso explicar os indicadores (como o percentil) e interpretar o seu resultado. Toque numa
-                    pergunta ou escreva a sua.
+                    Posso explicar os indicadores (como o percentil), interpretar o seu resultado e dizer em que
+                    cursos do SISU você teria passado. Toque numa pergunta ou escreva a sua.
                   </Text>
                 )}
                 {historico.map((msg, i) => (
