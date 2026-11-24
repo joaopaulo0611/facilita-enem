@@ -13,11 +13,12 @@ services:
     buildCommand: pip install -r facilita-backend/requirements.txt
     startCommand: cd facilita-backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
-    # Só refaz o deploy quando muda a API ou a Gold.
+    # Só refaz o deploy quando muda a API, a Gold ou a base do SISU.
     buildFilter:
       paths:
         - facilita-backend/**
         - data/gold/**
+        - data/inscricoes/**
     envVars:
       # Mesma versão usada nos testes locais.
       - key: PYTHON_VERSION

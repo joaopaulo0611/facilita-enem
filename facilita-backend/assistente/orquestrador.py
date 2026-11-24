@@ -24,7 +24,8 @@ SUGESTOES_INICIAIS = (
     "Como estou em Matemática?",
     "Como a nota do ENEM é calculada?",
     "Quais são as limitações dos dados?",
-    "Em que cursos eu poderia me inscrever?",
+    "Em que cursos eu teria passado?",
+    "Quais cursos de Medicina eu alcançaria?",
 )
 
 
@@ -34,7 +35,7 @@ class Orquestrador:
     def __init__(self, provedor: Provedor | None = None):
         self.provedor = provedor or ProvedorSimulado()
 
-    def responde(self, pergunta: str, resultado: dict | None = None) -> Resposta:
+    def responde(self, pergunta: str, resultado: dict | None = None, perfil: dict | None = None) -> Resposta:
         # 1) sanitização + limite de tamanho
         try:
             texto = V.sanitiza_pergunta(pergunta)
@@ -48,17 +49,19 @@ class Orquestrador:
         # 3) intenção (provedor) + 4) ferramenta controlada
         intent = self.provedor.classifica(texto)
         try:
-            return self._executa(intent, resultado)
+            return self._executa(intent, resultado, perfil)
         except Exception:
             # falha controlada: nunca vaza stack nem caminho interno
             return Resposta(Tipo.ERRO, "Não consegui responder agora. Tente reformular a pergunta.")
 
-    def _executa(self, intent, resultado: dict | None) -> Resposta:
+    def _executa(self, intent, resultado: dict | None, perfil: dict | None = None) -> Resposta:
         nome = intent.nome
         if nome == "ajuda":
             return F.ajuda()
-        if nome == "inscricao":
+        if nome == "programas":
             return F.fora_de_escopo_inscricao()
+        if nome == "cursos_ao_alcance":
+            return F.cursos_ao_alcance(resultado, intent.parametros.get("pergunta", ""), perfil)
         if nome == "limitacoes":
             return F.limitacoes()
         if nome == "interpretar_percentil":

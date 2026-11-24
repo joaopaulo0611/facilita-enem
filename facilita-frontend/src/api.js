@@ -31,14 +31,14 @@ export const buscarFamilia = (parametros) => buscar('modulos/familia', parametro
 
 export const buscarSugestoesAssistente = () => buscar('assistente/sugestoes')
 
-/** Envia a pergunta e, se houver, o resultado já calculado no radar. */
-export async function perguntarAssistente(pergunta, resultado = null) {
+/** Envia a pergunta e, se houver, o resultado do radar e os campos do perfil (usados nas cotas do SISU). */
+export async function perguntarAssistente(pergunta, resultado = null, perfil = null) {
   let resposta
   try {
     resposta = await fetch('/api/assistente/pergunta', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pergunta, resultado }),
+      body: JSON.stringify({ pergunta, resultado, perfil }),
     })
   } catch {
     throw new ErroApi('Não foi possível falar com o assistente. Confira sua conexão e tente de novo.')

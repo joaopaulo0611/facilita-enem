@@ -195,7 +195,7 @@ export default function App() {
         </Container>
       </Box>
 
-      <Assistente resultado={enviado?.resultado ?? null} />
+      <Assistente resultado={enviado?.resultado ?? null} perfil={enviado?.campos ?? null} />
     </Box>
   )
 }
